@@ -1,0 +1,7 @@
+Db:
+  Adapter: postgres
+  Conn: postgres://%v:%v@%v/%v?sslmode=disable
+  User:
+  Password:
+  Server: localhost
+  Database: star_store
