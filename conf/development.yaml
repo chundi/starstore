@@ -1,7 +1,0 @@
-Db:
-  Adapter: postgres
-  Conn: postgres://%v:%v@%v/%v?sslmode=disable
-  User: liuzb
-  Password: 963.
-  Server: localhost
-  Database: star_store
