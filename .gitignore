@@ -16,3 +16,4 @@
 # galaxy-solar
 .idea/
 vendor/
+conf/development.conf

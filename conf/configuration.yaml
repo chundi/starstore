@@ -1,0 +1,9 @@
+AppName: Star Store
+Port: 8080
+RunMode: development
+RegenerateTables: true
+
+Log:
+  Output: console
+Api:
+  Version: v1

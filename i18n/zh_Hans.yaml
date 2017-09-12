@@ -1,0 +1,23 @@
+message:
+  auth:
+    enterprise:
+      created: enterprise created!
+      uncreated: enterprise creating error!
+      authuncreated: enterprise auth creating error!
+      unsupported: unsupport auth type
+      notfound: cannot find enterprise by given account/password.
+      jsonerror:
+    login:
+      ok: login ok!
+      unsupported: unsupported login type
+  base:
+    created: created.
+    uncreated: creating error!
+    authuncreated: auth creating error!
+    notfound: cannot found corresponding resource by given account/password.
+    jsonerror: given json error!
+    parseerror: base parse error!
+backstage:
+
+
+
