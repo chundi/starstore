@@ -8,4 +8,5 @@ import (
 func AuthRoute(group *gin.RouterGroup) {
 	group.GET("/enterprise", controller.EnterpriseGet)
 	group.POST("/enterprise", controller.EnterprisePost)
+	group.GET("/enterprise/:id", controller.EnterpriseDetailGet)
 }

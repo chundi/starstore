@@ -7,6 +7,7 @@ message:
       unsupported: unsupport auth type
       notfound: cannot find enterprise by given account/password.
       jsonerror:
+      listerror: enterprise list error!
     login:
       ok: login ok!
       unsupported: unsupported login type
@@ -17,6 +18,9 @@ message:
     notfound: cannot found corresponding resource by given account/password.
     jsonerror: given json error!
     parseerror: base parse error!
+    listerror: base list error!
+    ok: operate ok!
+    error: error!
 backstage:
 
 

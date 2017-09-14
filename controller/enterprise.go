@@ -14,7 +14,9 @@ import (
 )
 
 func EnterpriseGet(g *gin.Context) {
-
+	enterprise := auth.Enterprise{}
+	var enterpriseList = []auth.Enterprise{}
+	BaseGet(g, DB(), &enterprise, &enterpriseList)
 }
 
 func EnterprisePost(g *gin.Context) {
@@ -45,4 +47,8 @@ func EnterprisePost(g *gin.Context) {
 		return nil
 	})
 	BasePost(g, DB(), &enterprise)
+}
+
+func EnterpriseDetailGet(g *gin.Context) {
+
 }

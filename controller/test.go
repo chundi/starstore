@@ -12,7 +12,7 @@ func TempGet(g *gin.Context) {
 		Name string	`form:"name"`
 	} {
 	}
-	BindWithTeeReader(g, &a)
+	BindRequestBodyWithTeeReader(g, &a)
 	//g.BindJSON(&a)
 	Logger.Info("TempGet: ", a.Id)
 	body, _ := ioutil.ReadAll(g.Request.Body)
