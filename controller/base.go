@@ -16,6 +16,8 @@ import (
 	"io/ioutil"
 	"bytes"
 	"encoding/json"
+	"github.com/galaxy-solar/starstore/conf"
+	"net/url"
 )
 
 var Logger *logrus.Logger
@@ -25,7 +27,11 @@ func init() {
 }
 
 func DB() *gorm.DB {
-	return model.DB.New()
+	db := model.DB.New()
+	if conf.IsDevelopMode() {
+		db.LogMode(true)
+	}
+	return db
 }
 
 func BaseMessage(baser model.Baser, key string) string {
@@ -36,7 +42,7 @@ func BaseMessage(baser model.Baser, key string) string {
 	}
 }
 
-func BindWithTeeReader(g *gin.Context, obj interface{}) error {
+func BindRequestBodyWithTeeReader(g *gin.Context, obj interface{}) error {
 	b := bytes.NewBuffer(make([]byte, 0))
 	reader := io.TeeReader(g.Request.Body, b)
 	err := json.NewDecoder(reader).Decode(obj);
@@ -44,8 +50,42 @@ func BindWithTeeReader(g *gin.Context, obj interface{}) error {
 	return err
 }
 
+func BaseGet(g *gin.Context, db *gorm.DB, baser model.Baser, baserList interface{}) {
+	if escapedQuery, err := url.QueryUnescape(g.Request.URL.RawQuery); err != nil {
+		g.JSON(http.StatusBadRequest, &response.Response{
+			Code: response.Error,
+			Message: BaseMessage(baser, "error"),
+			Data: nil,
+		})
+	} else {
+		db = util.ParseQuery(db, escapedQuery)
+	}
+	if err := baser.ExecuteHandlers(g, db, model.POSITION_GET_BEFORE_LIST); err != nil {
+		return
+	}
+	if errs := db.Model(baser.GetEntity()).Find(baserList).GetErrors(); len(errs) > 0 {
+		Logger.Info(fmt.Sprintf("BaseGet error! %v", errs))
+		g.JSON(http.StatusOK, &response.Response{
+			Code: response.Error,
+			Message: fmt.Sprint(errs),
+			Data: nil,
+		})
+		return
+	} else {
+		if err := baser.ExecuteHandlers(g, db, model.POSITION_GET_AFTER_LIST); err != nil {
+			return
+		}
+		Logger.Info(fmt.Sprintf("BaseGet ok!"))
+		g.JSON(http.StatusOK, &response.Response{
+			Code: response.OK,
+			Message: BaseMessage(baser, "ok"),
+			Data: baserList,
+		})
+	}
+}
+
 func BasePost(g *gin.Context, db *gorm.DB, baser model.Baser) {
-	BindWithTeeReader(g, baser.GetBase())
+	BindRequestBodyWithTeeReader(g, baser.GetBase())
 	if err := baser.ExecuteHandlers(g, db, model.POSITION_POST_BEFORE_CREATE); err != nil {
 		return
 	}
@@ -78,4 +118,8 @@ func BasePost(g *gin.Context, db *gorm.DB, baser model.Baser) {
 			Data: baser,
 		})
 	}
+}
+
+func BaseDetailGet(g *gin.Context) {
+
 }

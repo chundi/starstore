@@ -26,25 +26,28 @@ const (
 	POSITION_POST_TRANSACTION_START
 	POSITION_POST_TRANSACTION_END
 	POSITION_POST_AFTER_CREATE
+
+	POSITION_GET_BEFORE_LIST
+	POSITION_GET_AFTER_LIST
 )
 
 type Base struct {
-	Id          string `sql:"type:uuid; not null" gorm:"primary_key"`
-	OwnerId     string `sql:"type:uuid; default:'00000000-0000-0000-0000-000000000000'"`
-	ParentId    string `sql:"type:uuid; default:'00000000-0000-0000-0000-000000000000'"`
-	Type        string	`binding:"required"`
-	Status      string
-	Name        string	`binding:"required"`
-	Slug        string
-	Title       string
-	Description string
+	Id          string `sql:"type:uuid; not null" gorm:"primary_key" json:"id,omitempty"`
+	OwnerId     *string `sql:"type:uuid; default:'00000000-0000-0000-0000-000000000000'" json:"owner_id,omitempty"`
+	ParentId    *string `sql:"type:uuid; default:'00000000-0000-0000-0000-000000000000'" json:"parent_id,omitempty"`
+	Type        string	`binding:"required" json:"type,omitempty"`
+	Status      string	`json:"status,omitempty"`
+	Name        string	`binding:"required" json:"name,omitempty"`
+	Slug        string	`json:"slug,omitempty"`
+	Title       string	`json:"title,omitempty"`
+	Description string	`json:"description,omitempty"`
 
-	Content feature.JSONB `sql:"type:jsonb"`
+	Content feature.JSONB `sql:"type:jsonb" json:"content,omitempty"`
 
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	DeletedAt   time.Time
-	PublishedAt time.Time
+	CreatedDate   *time.Time	`json:"created_date,omitempty"`
+	UpdatedDate   *time.Time `json:"updated_date,omitempty"`
+	DeletedDate   *time.Time	`json:"deleted_date,omitempty"`
+	PublishedDate *time.Time	`json:"published_date,omitempty"`
 
 	Handlers map[TemplatePosition] []BaseHandlerWithDB `gorm:"-" json:"-"`
 }
