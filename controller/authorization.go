@@ -35,15 +35,15 @@ func AuthLogin(g *gin.Context) {
 		}
 		if authorEnterprise == nil {
 			g.JSON(http.StatusNotFound, &response.Response{
-				response.OK,
-				i18n.I18NViper.GetString("message.auth.enterprise.notfound"),
-				nil,
+				Code: response.OK,
+				Message: i18n.I18NViper.GetString("message.auth.enterprise.notfound"),
+				Data: nil,
 			})
 		}
 		g.JSON(http.StatusOK, &response.Response{
-			response.OK,
-			i18n.I18NViper.GetString("message.auth.login.ok"),
-			&authorEnterprise,
+			Code: response.OK,
+			Message: i18n.I18NViper.GetString("message.auth.login.ok"),
+			Data: &authorEnterprise,
 		})
 	case "user":
 		var authorUser *auth.UserAuthorization
@@ -60,21 +60,21 @@ func AuthLogin(g *gin.Context) {
 		}
 		if authorUser == nil {
 			g.JSON(http.StatusNotFound, &response.Response{
-				response.OK,
-				i18n.I18NViper.GetString("message.auth.enterprise.notfound"),
-				nil,
+				Code: response.OK,
+				Message: i18n.I18NViper.GetString("message.auth.enterprise.notfound"),
+				Data: nil,
 			})
 		}
 		g.JSON(http.StatusOK, &response.Response{
-			response.OK,
-			i18n.I18NViper.GetString("message.auth.login.ok"),
-			&authorUser,
+			Code: response.OK,
+			Message: i18n.I18NViper.GetString("message.auth.login.ok"),
+			Data: &authorUser,
 		})
 	default:
 		g.JSON(http.StatusNotFound, &response.Response{
-			response.NotFound,
-			i18n.I18NViper.GetString("message.auth.login.unsupported"),
-			nil,
+			Code: response.NotFound,
+			Message: i18n.I18NViper.GetString("message.auth.login.unsupported"),
+			Data: nil,
 		})
 	}
 }

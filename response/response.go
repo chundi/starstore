@@ -1,9 +1,10 @@
 package response
 
 type Response struct {
-	Code int 	`json:"code"`
-	Message string	`json:"message"`
-	Data interface{}	`json:"data"`
+	Code    int    `json:"code,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Message string    `json:"message,omitempty"`
+	Data    interface{}    `json:"data,omitempty"`
 }
 
 func (res *Response) SetCode(code int) {

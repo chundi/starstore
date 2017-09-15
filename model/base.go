@@ -4,14 +4,15 @@ import (
 	"time"
 	"github.com/galaxy-solar/starstore/model/feature"
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
+	//"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 	"github.com/gin-gonic/gin"
 	"github.com/galaxy-solar/starstore/i18n"
 )
 
 type Baser interface {
-	GetBase() *Base
+	//GetAllowedFields() []string TODO
+	//GetOmittedFields() []string TODO
 	GetEntity() interface{}
 	GetId() string
 	GetMessage() *viper.Viper
@@ -29,10 +30,17 @@ const (
 
 	POSITION_GET_BEFORE_LIST
 	POSITION_GET_AFTER_LIST
+
+	POSITION_DETAIL_GET_START
+	POSITION_DETAIL_GET_AFTER
+	POSITION_DETAIL_PUT_START
+	POSITION_DETAIL_PUT_AFTER
+	POSITION_DETAIL_DELETE_START
+	POSITION_DETAIL_DELETE_AFTER
 )
 
 type Base struct {
-	Id          string `sql:"type:uuid; not null" gorm:"primary_key" json:"id,omitempty"`
+	Id          string `sql:"type:uuid; not null; primary key" gorm:"primary_key" json:"id,omitempty"`
 	OwnerId     *string `sql:"type:uuid; default:'00000000-0000-0000-0000-000000000000'" json:"owner_id,omitempty"`
 	ParentId    *string `sql:"type:uuid; default:'00000000-0000-0000-0000-000000000000'" json:"parent_id,omitempty"`
 	Type        string	`binding:"required" json:"type,omitempty"`
@@ -69,10 +77,6 @@ func (base Base) ExecuteHandlers(g *gin.Context, db *gorm.DB, position TemplateP
 	return nil
 }
 
-func (base *Base) GetBase() *Base {
-	return base
-}
-
 func (base *Base) AddHandler(position TemplatePosition, handler BaseHandlerWithDB) {
 	if base.Handlers == nil {
 		base.Handlers = make(map[TemplatePosition] []BaseHandlerWithDB)
@@ -85,6 +89,7 @@ func (base *Base) AddHandler(position TemplatePosition, handler BaseHandlerWithD
 }
 
 func (base *Base) BeforeCreate(scope *gorm.Scope) error {
-	scope.SetColumn("Id", uuid.NewV4().String())
+	//scope.SetColumn("Id", uuid.NewV4().String())
+	scope.SetColumn("Id", "2c5e725d-c555-47aa-8aa8-53932444f556")
 	return nil
 }
