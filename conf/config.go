@@ -1,27 +1,29 @@
 package conf
 
 import (
-	"github.com/spf13/viper"
 	"fmt"
+	"github.com/spf13/viper"
 )
 
 type AppConfiguration struct {
-	AppName string
-	Port int
-	RunMode string
+	AppName          string
+	Port             int
+	RunMode          string
 	RegenerateTables bool
 
 	Db struct {
-		Adapter string
-		Conn string
-		User string
+		Adapter  string
+		Conn     string
+		User     string
 		Password string
-		Server string
+		Server   string
 		Database string
 	}
 
 	Log struct {
 		Output string
+		Level  string
+		Format string
 	}
 
 	Api struct {
@@ -31,14 +33,14 @@ type AppConfiguration struct {
 
 var AppConfig AppConfiguration
 
-func DefaultConfigor(fileName string) *viper.Viper {
-	configor := viper.New()
-	configor.AddConfigPath("./conf")
-	configor.SetConfigName(fileName)
-	if err := configor.ReadInConfig(); err != nil {
+func DefaultConfigurator(fileName string) *viper.Viper {
+	configurator := viper.New()
+	configurator.AddConfigPath("./conf")
+	configurator.SetConfigName(fileName)
+	if err := configurator.ReadInConfig(); err != nil {
 		panic(fmt.Sprintf("loading configuration %s error: %s", fileName, err))
 	}
-	return configor
+	return configurator
 }
 
 func IsDevelopMode() bool {
@@ -46,29 +48,33 @@ func IsDevelopMode() bool {
 }
 
 func init() {
-	ConfigViper := DefaultConfigor("configuration")
-	ConfigViper.SetDefault("RegenerateTables", false)
-	err := ConfigViper.Unmarshal(&AppConfig)
+	cfgViper := DefaultConfigurator("configuration")
+	cfgViper.SetDefault("RegenerateTables", false)
+	err := cfgViper.Unmarshal(&AppConfig)
 	if err != nil {
 		panic(fmt.Sprintf("configuration unmarshal error: %s", err))
 	}
 	if !IsDevelopMode() {
 		AppConfig.RegenerateTables = false
 	}
-	var dbConfigFileName string
-	var dbViper *viper.Viper
-	var dbConfigor AppConfiguration
+
+	var cfgFileName string
+	var viper *viper.Viper
+	var appCfg AppConfiguration
+
 	switch AppConfig.RunMode {
 	case "production", "release", "product":
-		dbConfigFileName = "production"
+		cfgFileName = "production"
 	case "development", "dev", "develop":
 		fallthrough
-	default :
-		dbConfigFileName = "development"
+	default:
+		cfgFileName = "development"
 	}
-	dbViper = DefaultConfigor(dbConfigFileName)
-	if err := dbViper.Unmarshal(&dbConfigor); err != nil {
+
+	viper = DefaultConfigurator(cfgFileName)
+	if err := viper.Unmarshal(&appCfg); err != nil {
 		panic(fmt.Sprintf("db configuration unmarshal error: %s", err))
 	}
-	AppConfig.Db = dbConfigor.Db
+	AppConfig.Db = appCfg.Db
+	AppConfig.Log = appCfg.Log
 }
