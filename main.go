@@ -1,16 +1,17 @@
 package main
 
 import (
-	"github.com/galaxy-solar/starstore/model/earth"
 	"github.com/galaxy-solar/starstore/model"
 	"github.com/galaxy-solar/starstore/model/auth"
+	"github.com/galaxy-solar/starstore/model/earth"
 
-	"github.com/galaxy-solar/starstore/conf"
-	"github.com/galaxy-solar/starstore/router"
-	"github.com/fvbock/endless"
-	"github.com/gin-gonic/gin"
-	"github.com/galaxy-solar/starstore/router/middleware"
 	"fmt"
+	"github.com/fvbock/endless"
+	"github.com/galaxy-solar/starstore/conf"
+	"github.com/galaxy-solar/starstore/message"
+	"github.com/galaxy-solar/starstore/router"
+	"github.com/galaxy-solar/starstore/router/middleware"
+	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,6 +26,12 @@ func initTables(tables ...interface{}) {
 
 func initRouter() {
 	rootRouter = gin.New()
+
+	// serve websocket
+	rootRouter.GET("/ws", func(c *gin.Context) {
+		message.WsHandler(c.Writer, c.Request)
+	})
+
 	rootRouter.Use(middleware.HttpLogger())
 	rootRouter.Use(gin.Logger())
 	rootRouter.Use(gin.Recovery())
