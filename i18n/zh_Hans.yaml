@@ -19,8 +19,13 @@ message:
     jsonerror: given json error!
     parseerror: base parse error!
     listerror: base list error!
+    updateerror: base update error!
+    deleteerror: delete error!
+    resourcenotfound: cannot found corresponding resource by given id.
+    deleteok: deleted !
     ok: operate ok!
     error: error!
+    omitted: omitted fields found!
 backstage:
 
 

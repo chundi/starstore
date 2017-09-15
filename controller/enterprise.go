@@ -50,5 +50,16 @@ func EnterprisePost(g *gin.Context) {
 }
 
 func EnterpriseDetailGet(g *gin.Context) {
+	enterprise := auth.Enterprise{}
+	BaseDetailGet(g, DB(), &enterprise)
+}
 
+func EnterpriseDetailPut(g *gin.Context) {
+	enterprise := auth.Enterprise{}
+	BaseDetailPut(g, DB(), &enterprise)
+}
+
+func EnterpriseDetailDelete(g *gin.Context) {
+	enterprise := auth.Enterprise{}
+	BaseDetailDelete(g, DB(), &enterprise)
 }

@@ -26,7 +26,7 @@ func NewLogger(fmtType string, level string, logFile string) *logrus.Logger {
 		formatter = &logrus.JSONFormatter{}
 	} else {
 		formatter = &logrus.TextFormatter{
-			FullTimestamp:    true,
+			FullTimestamp: true,
 		}
 	}
 	output, err := OutPutWriter(logFile)
