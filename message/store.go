@@ -25,7 +25,7 @@ func newStore(h *Hub, store_id string) *Store {
 	}
 }
 
-func (s *Store) AddClient(client *Client) {
+func (s *Store) addClient(client *Client) {
 	s.rwLock.Lock()
 	defer s.rwLock.Unlock()
 	if cli, ok := s.clients[client.id]; ok {
@@ -36,7 +36,7 @@ func (s *Store) AddClient(client *Client) {
 	s.clients[client.id] = client
 }
 
-func (s *Store) RemoveClient(client *Client) {
+func (s *Store) removeClient(client *Client) {
 	s.rwLock.Lock()
 	defer s.rwLock.Unlock()
 	if cli, ok := s.clients[client.id]; ok {
@@ -45,7 +45,7 @@ func (s *Store) RemoveClient(client *Client) {
 	}
 }
 
-func (s *Store) GetClient(clientId string) (*Client, bool) {
+func (s *Store) getClient(clientId string) (*Client, bool) {
 	s.rwLock.RLock()
 	defer s.rwLock.RUnlock()
 	cli, ok := s.clients[clientId]
@@ -56,9 +56,9 @@ func (s *Store) start() {
 	for {
 		select {
 		case client := <-s.register:
-			s.AddClient(client)
+			s.addClient(client)
 		case client := <-s.unregister:
-			s.RemoveClient(client)
+			s.removeClient(client)
 		case msg := <-s.transfer:
 			go ProcessMessage(s, msg)
 		}
