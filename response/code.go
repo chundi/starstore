@@ -1,11 +1,9 @@
 package response
 
-
 const (
-	OK int = 0
-
-	Error int = 40000
-	NotFound = iota
+	OK int = iota
+	Error
+	NotFound
 
 	DBConnectionError = iota
 )

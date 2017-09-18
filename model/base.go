@@ -1,22 +1,31 @@
 package model
 
 import (
-	"time"
-	"github.com/galaxy-solar/starstore/model/feature"
-	"github.com/jinzhu/gorm"
-	//"github.com/satori/go.uuid"
-	"github.com/spf13/viper"
-	"github.com/gin-gonic/gin"
 	"github.com/galaxy-solar/starstore/i18n"
+	"github.com/galaxy-solar/starstore/model/feature"
+	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
+	"github.com/satori/go.uuid"
+	"github.com/spf13/viper"
+	"time"
 )
 
 type Baser interface {
+	GetEntity() interface{}
+	GetBase() interface{}
+}
+
+type HandlerImplementer interface {
+	ExecuteHandlers(g *gin.Context, db *gorm.DB, position TemplatePosition) error
+	AddHandler(position TemplatePosition, handler BaseHandlerWithDB)
+}
+
+type EntityBaser interface {
 	//GetAllowedFields() []string TODO
 	//GetOmittedFields() []string TODO
-	GetEntity() interface{}
-	GetId() string
+	Baser
+	HandlerImplementer
 	GetMessage() *viper.Viper
-	ExecuteHandlers(*gin.Context, *gorm.DB, TemplatePosition) error
 }
 
 type BaseHandlerWithDB func(g *gin.Context, db *gorm.DB) error
@@ -40,36 +49,49 @@ const (
 )
 
 type Base struct {
-	Id          string `sql:"type:uuid; not null; primary key" gorm:"primary_key" json:"id,omitempty"`
+	Id          string  `sql:"type:uuid; not null; primary key" gorm:"primary_key" json:"id,omitempty"`
 	OwnerId     *string `sql:"type:uuid; default:'00000000-0000-0000-0000-000000000000'" json:"owner_id,omitempty"`
 	ParentId    *string `sql:"type:uuid; default:'00000000-0000-0000-0000-000000000000'" json:"parent_id,omitempty"`
-	Type        string	`binding:"required" json:"type,omitempty"`
-	Status      string	`json:"status,omitempty"`
-	Name        string	`binding:"required" json:"name,omitempty"`
-	Slug        string	`json:"slug,omitempty"`
-	Title       string	`json:"title,omitempty"`
-	Description string	`json:"description,omitempty"`
+	Type        string  `binding:"required" json:"type,omitempty"`
+	Status      string  `json:"status,omitempty"`
+	Name        string  `binding:"required" json:"name,omitempty"`
+	Slug        string  `json:"slug,omitempty"`
+	Title       string  `json:"title,omitempty"`
+	Description string  `json:"description,omitempty"`
 
 	Content feature.JSONB `sql:"type:jsonb" json:"content,omitempty"`
+	Meta    interface{}   `gorm:"-" json:"meta,omitempty"`
 
-	CreatedDate   *time.Time	`json:"created_date,omitempty"`
+	CreatedDate   *time.Time `json:"created_date,omitempty"`
 	UpdatedDate   *time.Time `json:"updated_date,omitempty"`
-	DeletedDate   *time.Time	`json:"deleted_date,omitempty"`
-	PublishedDate *time.Time	`json:"published_date,omitempty"`
+	DeletedDate   *time.Time `json:"deleted_date,omitempty"`
+	PublishedDate *time.Time `json:"published_date,omitempty"`
 
-	Handlers map[TemplatePosition] []BaseHandlerWithDB `gorm:"-" json:"-"`
+	HandlerImplement
 }
 
-func (base Base) GetId() string {
-	return base.Id
+type HandlerImplement struct {
+	Handlers map[TemplatePosition][]BaseHandlerWithDB `gorm:"-" json:"-"`
+}
+
+func (base *Base) GetBase() interface{} {
+	return base
 }
 
 func (base Base) GetMessage() *viper.Viper {
 	return i18n.I18NViper.Sub("message.base")
 }
 
-func (base Base) ExecuteHandlers(g *gin.Context, db *gorm.DB, position TemplatePosition) error {
-	for _, handler := range base.Handlers[position] {
+func (base *Base) SetCreateDate(t time.Time) {
+	base.CreatedDate = &t
+}
+
+func (base *Base) SetUpdateDate(t time.Time) {
+	base.UpdatedDate = &t
+}
+
+func (implementer HandlerImplement) ExecuteHandlers(g *gin.Context, db *gorm.DB, position TemplatePosition) error {
+	for _, handler := range implementer.Handlers[position] {
 		if err := handler(g, db); err != nil {
 			return err
 		}
@@ -77,19 +99,18 @@ func (base Base) ExecuteHandlers(g *gin.Context, db *gorm.DB, position TemplateP
 	return nil
 }
 
-func (base *Base) AddHandler(position TemplatePosition, handler BaseHandlerWithDB) {
-	if base.Handlers == nil {
-		base.Handlers = make(map[TemplatePosition] []BaseHandlerWithDB)
+func (implementer *HandlerImplement) AddHandler(position TemplatePosition, handler BaseHandlerWithDB) {
+	if implementer.Handlers == nil {
+		implementer.Handlers = make(map[TemplatePosition][]BaseHandlerWithDB)
 	}
-	if _, ok := base.Handlers[position]; !ok {
-		base.Handlers[position] = []BaseHandlerWithDB{handler}
+	if _, ok := implementer.Handlers[position]; !ok {
+		implementer.Handlers[position] = []BaseHandlerWithDB{handler}
 	} else {
-		base.Handlers[position] = append(base.Handlers[position], handler)
+		implementer.Handlers[position] = append(implementer.Handlers[position], handler)
 	}
 }
 
 func (base *Base) BeforeCreate(scope *gorm.Scope) error {
-	//scope.SetColumn("Id", uuid.NewV4().String())
-	scope.SetColumn("Id", "2c5e725d-c555-47aa-8aa8-53932444f556")
+	scope.SetColumn("Id", uuid.NewV4().String())
 	return nil
 }

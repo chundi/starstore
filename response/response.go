@@ -1,10 +1,10 @@
 package response
 
 type Response struct {
-	Code    int    `json:"code,omitempty"`
-	Error   string `json:"error,omitempty"`
-	Message string    `json:"message,omitempty"`
-	Data    interface{}    `json:"data,omitempty"`
+	Code    int         `json:"code"`
+	Error   string      `json:"error,omitempty"`
+	Message string      `json:"message,omitempty"`
+	Data    interface{} `json:"data,omitempty"`
 }
 
 func (res *Response) SetCode(code int) {
@@ -19,3 +19,7 @@ func (res *Response) SetData(data interface{}) {
 	res.Data = data
 }
 
+type DataListObject struct {
+	Count int         `json:"count"`
+	List  interface{} `json:"list"`
+}

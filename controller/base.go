@@ -35,8 +35,8 @@ func DB() *gorm.DB {
 	return db
 }
 
-func BaseMessage(baser model.Baser, key string) string {
-	if baser.GetMessage().IsSet(key) {
+func BaseMessage(baser model.EntityBaser, key string) string {
+	if baser.GetMessage() != nil && baser.GetMessage().IsSet(key) {
 		return baser.GetMessage().GetString(key)
 	} else {
 		return i18n.I18NViper.GetString(fmt.Sprintf("message.base.%s", key))
@@ -51,7 +51,7 @@ func BindRequestBodyWithTeeReader(g *gin.Context, obj interface{}) error {
 	return err
 }
 
-func ParseFilteredQuery(g *gin.Context, db *gorm.DB, baser model.Baser) *gorm.DB {
+func ParseFilteredQuery(g *gin.Context, db *gorm.DB, baser model.EntityBaser) *gorm.DB {
 	if escapedQuery, err := url.QueryUnescape(g.Request.URL.RawQuery); err != nil {
 		g.JSON(http.StatusBadRequest, &response.Response{
 			Code:    response.Error,
@@ -64,11 +64,13 @@ func ParseFilteredQuery(g *gin.Context, db *gorm.DB, baser model.Baser) *gorm.DB
 	return db
 }
 
-func BaseGet(g *gin.Context, db *gorm.DB, baser model.Baser, baserList interface{}) {
+func BaseGet(g *gin.Context, db *gorm.DB, baser model.EntityBaser, baserList interface{}) {
+	var listCount int
 	db = ParseFilteredQuery(g, db, baser)
 	if err := baser.ExecuteHandlers(g, db, model.POSITION_GET_BEFORE_LIST); err != nil {
 		return
 	}
+	db.Model(baser.GetEntity()).Scopes(BaseAvailable).Count(&listCount)
 	if errs := db.Model(baser.GetEntity()).Scopes(BaseAvailable).Find(baserList).GetErrors(); len(errs) > 0 {
 		Logger.Info(fmt.Sprintf("BaseGet error! %v", errs))
 		g.JSON(http.StatusNotFound, &response.Response{
@@ -86,12 +88,15 @@ func BaseGet(g *gin.Context, db *gorm.DB, baser model.Baser, baserList interface
 		g.JSON(http.StatusOK, &response.Response{
 			Code:    response.OK,
 			Message: BaseMessage(baser, "ok"),
-			Data:    baserList,
+			Data: &response.DataListObject{
+				Count: listCount,
+				List:  baserList,
+			},
 		})
 	}
 }
 
-func BasePost(g *gin.Context, db *gorm.DB, baser model.Baser) {
+func BasePost(g *gin.Context, db *gorm.DB, baser model.EntityBaser) {
 	BindRequestBodyWithTeeReader(g, baser.GetEntity())
 	if err := baser.ExecuteHandlers(g, db, model.POSITION_POST_BEFORE_CREATE); err != nil {
 		return
@@ -100,7 +105,7 @@ func BasePost(g *gin.Context, db *gorm.DB, baser model.Baser) {
 	if err := baser.ExecuteHandlers(g, db, model.POSITION_POST_TRANSACTION_START); err != nil {
 		return
 	}
-
+	baser.GetBase().(*model.Base).SetCreateDate(time.Now())
 	if err := tx.Create(baser.GetEntity()).Error; err != nil {
 		tx.Rollback()
 
@@ -112,6 +117,12 @@ func BasePost(g *gin.Context, db *gorm.DB, baser model.Baser) {
 		})
 	} else {
 		if err := baser.ExecuteHandlers(g, tx, model.POSITION_POST_TRANSACTION_END); err != nil {
+			g.JSON(http.StatusBadGateway, &response.Response{
+				Code:    response.Error,
+				Error:   fmt.Sprint(err),
+				Message: BaseMessage(baser, "uncreated"),
+				Data:    nil,
+			})
 			return
 		}
 		tx.Commit()
@@ -119,7 +130,7 @@ func BasePost(g *gin.Context, db *gorm.DB, baser model.Baser) {
 			return
 		}
 
-		Logger.Info(fmt.Sprintf("created %s id: %s", util.ModelType(baser), baser.GetId()))
+		Logger.Info(fmt.Sprintf("created %s id: %s", util.ModelType(baser), baser.GetBase().(*model.Base).Id))
 		g.JSON(http.StatusCreated, &response.Response{
 			Code:    response.OK,
 			Message: BaseMessage(baser, "created"),
@@ -128,7 +139,7 @@ func BasePost(g *gin.Context, db *gorm.DB, baser model.Baser) {
 	}
 }
 
-func BaseDetailGet(g *gin.Context, db *gorm.DB, baser model.Baser) {
+func BaseDetailGet(g *gin.Context, db *gorm.DB, baser model.EntityBaser) {
 	db = ParseFilteredQuery(g, db, baser)
 	id := g.Param("id")
 	if err := baser.ExecuteHandlers(g, db, model.POSITION_DETAIL_GET_START); err != nil {
@@ -142,6 +153,12 @@ func BaseDetailGet(g *gin.Context, db *gorm.DB, baser model.Baser) {
 		})
 	} else {
 		if err := baser.ExecuteHandlers(g, db, model.POSITION_DETAIL_GET_AFTER); err != nil {
+			g.JSON(http.StatusBadGateway, &response.Response{
+				Code:    response.Error,
+				Error:   fmt.Sprint(err),
+				Message: BaseMessage(baser, "resourcenotfound"),
+				Data:    nil,
+			})
 			return
 		}
 		g.JSON(http.StatusOK, &response.Response{
@@ -152,14 +169,11 @@ func BaseDetailGet(g *gin.Context, db *gorm.DB, baser model.Baser) {
 	}
 }
 
-func BaseDetailPut(g *gin.Context, db *gorm.DB, baser model.Baser) {
+func BaseDetailPut(g *gin.Context, db *gorm.DB, baser model.EntityBaser) {
 	omittedFields := []string{"id", "parent_id", "owner_id"}
 	db = ParseFilteredQuery(g, db, baser)
 	id := g.Param("id")
 	if db.Where("id = ?", id).First(baser.GetEntity()).RecordNotFound() {
-		if err := baser.ExecuteHandlers(g, db, model.POSITION_DETAIL_PUT_START); err != nil {
-			return
-		}
 		g.JSON(http.StatusNotFound, &response.Response{
 			Code:    response.NotFound,
 			Message: BaseMessage(baser, "resourcenotfound"),
@@ -178,8 +192,12 @@ func BaseDetailPut(g *gin.Context, db *gorm.DB, baser model.Baser) {
 				return
 			}
 		}
-		BindRequestBodyWithTeeReader(g, baser.GetEntity())
 
+		if err := baser.ExecuteHandlers(g, db, model.POSITION_DETAIL_PUT_START); err != nil {
+			return
+		}
+		BindRequestBodyWithTeeReader(g, baser.GetEntity())
+		baser.GetBase().(*model.Base).SetUpdateDate(time.Now())
 		if err := db.Model(baser.GetEntity()).Omit(omittedFields...).Updates(baser.GetEntity()).Error; err != nil {
 			g.JSON(http.StatusBadGateway, &response.Response{
 				Code:    response.Error,
@@ -200,9 +218,9 @@ func BaseDetailPut(g *gin.Context, db *gorm.DB, baser model.Baser) {
 	}
 }
 
-func BaseDetailDelete(g *gin.Context, db *gorm.DB, baser model.Baser) {
+func BaseDetailDelete(g *gin.Context, db *gorm.DB, baser model.EntityBaser) {
 	id := g.Param("id")
-	if err := baser.ExecuteHandlers(g, db, model.POSITION_DETAIL_GET_START); err != nil {
+	if err := baser.ExecuteHandlers(g, db, model.POSITION_DETAIL_DELETE_START); err != nil {
 		return
 	}
 	if db.Where("id = ?", id).First(baser.GetEntity()).RecordNotFound() {
@@ -221,7 +239,7 @@ func BaseDetailDelete(g *gin.Context, db *gorm.DB, baser model.Baser) {
 				Data:    nil,
 			})
 		} else {
-			if err := baser.ExecuteHandlers(g, db, model.POSITION_DETAIL_GET_AFTER); err != nil {
+			if err := baser.ExecuteHandlers(g, db, model.POSITION_DETAIL_DELETE_AFTER); err != nil {
 				return
 			}
 			g.JSON(http.StatusOK, &response.Response{

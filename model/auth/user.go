@@ -8,6 +8,8 @@ import (
 
 type User struct {
 	model.Base
+
+	Authorization UserAuthorization `gorm:"-" json:"authorization,omitempty"`
 }
 
 func (user User) GetMessage() *viper.Viper {
