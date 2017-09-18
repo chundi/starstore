@@ -8,7 +8,7 @@ import (
 type Password string
 
 func (u *Password) Scan(value interface{}) error {
-	*u = Password(value.(string));
+	*u = Password(value.(string))
 	return nil
 }
 
@@ -18,38 +18,37 @@ func (u Password) Value() (driver.Value, error) {
 
 type AuthOAuth2 struct {
 	// OAuth2
-	Oauth2Uid      string
-	Oauth2Provider string
-	Oauth2Token    string
-	Oauth2Refresh  string
-	Oauth2Expiry   time.Time
+	Oauth2Uid      string     `json:"oauth2uid,omitempty"`
+	Oauth2Provider string     `json:"oauth2provider,omitempty"`
+	Oauth2Token    string     `json:"oauth2token,omitempty"`
+	Oauth2Refresh  string     `json:"oauth2refresh,omitempty"`
+	Oauth2Expiry   *time.Time `json:"oauth2expiry,omitempty"`
 }
 
 type AuthConfirm struct {
 	// Confirm
-	ConfirmToken string
-	Confirmed    bool
+	ConfirmToken string `json:"confirm_token,omitempty"`
+	Confirmed    bool   `json:"confirmed,omitempty"`
 }
 
 type AuthLock struct {
 	// Lock
-	AttemptNumber int64
-	AttemptTime   time.Time
-	Locked        time.Time
+	AttemptNumber int64      `json:"attempt_number,omitempty"`
+	AttemptTime   *time.Time `json:"attempt_time,omitempty"`
+	Locked        *time.Time `json:"locked,omitempty"`
 }
 
 type AuthRecover struct {
 	// Recover
-	RecoverToken       string
-	RecoverTokenExpiry time.Time
+	RecoverToken       string     `json:"recover_token,omitempty"`
+	RecoverTokenExpiry *time.Time `json:"recover_token_expiry,omitempty"`
 }
 
-
 type AuthBase struct {
-	Username	string	`gorm:"not null;unique" json:"username"`
-	Email 		string	`gorm:"not null;unique" json:"email"`
-	Mobile  	string	`gorm:"not null;unique" json:"mobile"`
-	Password	Password	`binding:"required" json:"password"`
+	Username string   `gorm:"not null;unique" json:"username,omitempty"`
+	Email    string   `gorm:"not null;unique" json:"email,omitempty"`
+	Mobile   string   `gorm:"not null;unique" json:"mobile,omitempty"`
+	Password Password `binding:"required" json:"password,omitempty"`
 
 	AuthConfirm
 	AuthRecover
@@ -57,13 +56,13 @@ type AuthBase struct {
 }
 
 type UserAuthorization struct {
-	UserId string `sql:"type:uuid;not null"`
+	Id string `sql:"type:uuid;not null" json:"id,omitempty"`
 
 	AuthBase
 }
 
 type EnterpriseAuthorization struct {
-	EnterpriseId string `sql:"type:uuid; not null"`
+	Id string `sql:"type:uuid; not null" json:"id,omitempty"`
 
 	AuthBase
 	AuthOAuth2

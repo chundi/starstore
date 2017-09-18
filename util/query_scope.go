@@ -1,17 +1,17 @@
 package util
 
 import (
-	"strings"
-	"github.com/jinzhu/gorm"
 	"fmt"
+	"github.com/jinzhu/gorm"
+	"strings"
 )
 
 type Parameter struct {
-	Raw 	string
-	Key 	string
-	Operate Operator
+	Raw      string
+	Key      string
+	Operate  Operator
 	Function OperateFunction
-	Value 	string
+	Value    string
 }
 
 func (param Parameter) IsOperator() bool {
@@ -27,7 +27,6 @@ func (param Parameter) IsQueryOperatable() bool {
 }
 
 type ParameterMapper map[string][]*Parameter
-
 
 type QueryOperatable interface {
 	Must(string) bool
@@ -64,18 +63,18 @@ const (
 	OPERATOR_GREATER_EQUAL          = "_ge_"
 	OPERATOR_LESS_THAN              = "_lt_"
 	OPERATOR_LESS_EQUAL             = "_le_"
-	OPERATOR_NOT_IN                 = "_ni_"		   //example: type<ni>dressing_room,zone
-	OPERATOR_IN                     = "_in_"		   //example: status<in>created,published
-	OPERATOR_LIKE 					= "_lk_" 		   //example: name<lk>%线下店%
+	OPERATOR_NOT_IN                 = "_ni_" //example: type<ni>dressing_room,zone
+	OPERATOR_IN                     = "_in_" //example: status<in>created,published
+	OPERATOR_LIKE                   = "_lk_" //example: name<lk>线下店
 
-	OPERATOR_FUNCTION_ORDER OperateFunction = "order"  //example: order=+price,-publish_date
-	OPERATOR_FUNCTION_FIELD_SCANNER = "fields"		   //example: fields=type,status,name,title
-	OPERATOR_FUNCTION_PAGINATION = "flag"			   //example: flag=1_100_18
-															// meaning: version_(flag_format), flag_format example: offset_limit
+	OPERATOR_FUNCTION_ORDER         OperateFunction = "order"  //example: order=+price,-publish_date
+	OPERATOR_FUNCTION_FIELD_SCANNER                 = "fields" //example: fields=type,status,name,title
+	OPERATOR_FUNCTION_PAGINATION                    = "flag"   //example: flag=1_100_18
+	// meaning: version_(flag_format), flag_format example: offset_limit
 )
 
 var (
-	currentSupportedOperators []Operator = []Operator {
+	currentSupportedOperators []Operator = []Operator{
 		OPERATOR_EQUAL,
 		OPERATOR_NOT_EQUAL,
 		OPERATOR_GREATER_THAN,
@@ -86,7 +85,7 @@ var (
 		OPERATOR_IN,
 		OPERATOR_LIKE,
 	}
-	currentSupportedFunctions []OperateFunction = []OperateFunction {
+	currentSupportedFunctions []OperateFunction = []OperateFunction{
 		OPERATOR_FUNCTION_ORDER,
 		OPERATOR_FUNCTION_FIELD_SCANNER,
 		OPERATOR_FUNCTION_PAGINATION,
@@ -115,18 +114,18 @@ func parseParam(paramString string) *Parameter {
 	case Operator:
 		values := strings.Split(paramString, string(operator.(Operator)))
 		return &Parameter{
-			Raw: paramString,
+			Raw:     paramString,
 			Operate: operator.(Operator),
-			Key: values[0],
-			Value: values[1],
+			Key:     values[0],
+			Value:   values[1],
 		}
 	case OperateFunction:
 		values := strings.Split(paramString, string(OPERATOR_EQUAL))
 		return &Parameter{
-			Raw: paramString,
+			Raw:      paramString,
 			Function: operator.(OperateFunction),
-			Key: values[0],
-			Value: values[1],
+			Key:      values[0],
+			Value:    values[1],
 		}
 	}
 	return nil
@@ -193,7 +192,7 @@ func bindParameter(db *gorm.DB, param *Parameter) *gorm.DB {
 			case OPERATOR_LIKE:
 				db = db.Where(fmt.Sprintf("%s like ?", param.Key), fmt.Sprint("%", param.Value, "%"))
 			case OPERATOR_IN:
-				db = db.Where(fmt.Sprintf("%s in (?)", param.Key),  strings.Split(param.Value, ","))
+				db = db.Where(fmt.Sprintf("%s in (?)", param.Key), strings.Split(param.Value, ","))
 			case OPERATOR_NOT_EQUAL:
 				fallthrough
 			case OPERATOR_NOT_IN:

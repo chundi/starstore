@@ -54,9 +54,6 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("configuration unmarshal error: %s", err))
 	}
-	if !IsDevelopMode() {
-		AppConfig.RegenerateTables = false
-	}
 
 	var cfgFileName string
 	var viper *viper.Viper
@@ -75,6 +72,11 @@ func init() {
 	if err := viper.Unmarshal(&appCfg); err != nil {
 		panic(fmt.Sprintf("db configuration unmarshal error: %s", err))
 	}
+	AppConfig.RegenerateTables = appCfg.RegenerateTables
 	AppConfig.Db = appCfg.Db
 	AppConfig.Log = appCfg.Log
+
+	if !IsDevelopMode() {
+		AppConfig.RegenerateTables = false
+	}
 }

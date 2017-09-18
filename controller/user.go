@@ -32,7 +32,7 @@ func UserPost(g *gin.Context) {
 		} else {
 			authJson := gjson.GetBytes(body, "authorization")
 			gjson.Unmarshal([]byte(authJson.Raw), &authorization.AuthBase)
-			authorization.UserId = user.Id
+			authorization.Id = user.Id
 			Logger.Debug("user creating authorization: ", authorization)
 		}
 		if authErr := db.Create(&authorization).Error; authErr != nil {
@@ -51,6 +51,20 @@ func UserPost(g *gin.Context) {
 
 func UserDetailGet(g *gin.Context) {
 	user := auth.User{}
+	user.AddHandler(model.POSITION_DETAIL_GET_AFTER, func(g *gin.Context, db *gorm.DB) error {
+		id := g.Param("id")
+		if db.Where("id = ?", id).First(&user.Authorization).RecordNotFound() {
+			g.JSON(http.StatusNotFound, &response.Response{
+				Code:    response.NotFound,
+				Message: BaseMessage(&user, "resourcenotfound"),
+				Data:    nil,
+			})
+			return errors.New("authorization get failed")
+		} else {
+			user.Authorization.Password = ""
+		}
+		return nil
+	})
 	BaseDetailGet(g, DB(), &user)
 }
 

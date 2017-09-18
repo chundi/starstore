@@ -7,7 +7,7 @@ import (
 )
 
 type Space struct {
-	*model.Base
+	model.Base
 }
 
 func (space Space) GetMessage() *viper.Viper {
