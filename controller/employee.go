@@ -14,23 +14,25 @@ import (
 	"net/http"
 )
 
-func EnterpriseGet(g *gin.Context) {
-	enterprise := auth.Enterprise{}
-	var enterpriseList = []auth.Enterprise{}
-	BaseGet(g, DBWithContext(g), &enterprise, &enterpriseList)
+func EmployeeGet(g *gin.Context) {
+	employee := auth.Employee{}
+	var userList = []auth.Employee{}
+	BaseGet(g, DBWithContext(g), &employee, &userList)
 }
 
-func EnterprisePost(g *gin.Context) {
-	enterprise := auth.Enterprise{}
-	enterprise.AddHandler(model.POSITION_POST_TRANSACTION_END, func(g *gin.Context, db *gorm.DB) error {
-		authorization := auth.EnterpriseAuthorization{}
+func EmployeePost(g *gin.Context) {
+	employee := auth.Employee{}
+	if claim, ok := GetCapabilityClaims(g); ok && claim.IsEnterprise() {
+		employee.OwnerId = claim.Id
+	}
+	employee.AddHandler(model.POSITION_POST_TRANSACTION_END, func(g *gin.Context, db *gorm.DB) error {
+		authorization := auth.EmployeeAuthorization{}
 		if body, err := ioutil.ReadAll(g.Request.Body); err != nil {
 			Logger.Error(err)
 			g.JSON(http.StatusInternalServerError, &response.Response{
 				Code:    response.Error,
-				Message: i18n.I18NViper.GetString("message.auth.enterprise.jsonerror"),
+				Message: i18n.I18NViper.GetString("message.auth.employee.jsonerror"),
 			})
-			return errors.New(i18n.I18NViper.GetString("message.auth.enterprise.jsonerror"))
 		} else {
 			authJson := gjson.GetBytes(body, "authorization")
 			gjson.Unmarshal([]byte(authJson.Raw), &authorization.AuthBase)
@@ -55,8 +57,8 @@ func EnterprisePost(g *gin.Context) {
 				})
 				return errors.New(validationMessage)
 			} else {
-				authorization.Id = enterprise.Id
-				Logger.Debug("enterprise creating authorization: ", authorization)
+				authorization.Id = employee.Id
+				Logger.Debug("employee creating authorization: ", authorization)
 			}
 		}
 		if authErr := db.Create(&authorization).Error; authErr != nil {
@@ -64,40 +66,40 @@ func EnterprisePost(g *gin.Context) {
 			Logger.Error(authErr)
 			g.JSON(http.StatusInternalServerError, &response.Response{
 				Code:    response.Error,
-				Message: i18n.I18NViper.GetString("message.auth.enterprise.authuncreated"),
+				Message: i18n.I18NViper.GetString("message.auth.employee.authuncreated"),
 			})
-			return errors.New(i18n.I18NViper.GetString("message.auth.enterprise.authuncreated"))
+			return errors.New("authorization create failed")
 		}
 		return nil
 	})
-	BasePost(g, DBWithContext(g), &enterprise)
+	BasePost(g, DBWithContext(g), &employee)
 }
 
-func EnterpriseDetailGet(g *gin.Context) {
-	enterprise := auth.Enterprise{}
-	enterprise.AddHandler(model.POSITION_DETAIL_GET_AFTER, func(g *gin.Context, db *gorm.DB) error {
+func EmployeeDetailGet(g *gin.Context) {
+	employee := auth.Employee{}
+	employee.AddHandler(model.POSITION_DETAIL_GET_AFTER, func(g *gin.Context, db *gorm.DB) error {
 		id := g.Param("id")
-		if db.Where("id = ?", id).First(&enterprise.Authorization).RecordNotFound() {
+		if db.Where("id = ?", id).First(&employee.Authorization).RecordNotFound() {
 			g.JSON(http.StatusNotFound, &response.Response{
 				Code:    response.NotFound,
-				Message: BaseMessage(&enterprise, "resourcenotfound"),
+				Message: BaseMessage(&employee, "resourcenotfound"),
 				Data:    nil,
 			})
 			return errors.New("authorization get failed")
 		} else {
-			enterprise.Authorization.Password = ""
+			employee.Authorization.Password = ""
 		}
 		return nil
 	})
-	BaseDetailGet(g, DBWithContext(g), &enterprise)
+	BaseDetailGet(g, DBWithContext(g), &employee)
 }
 
-func EnterpriseDetailPut(g *gin.Context) {
-	enterprise := auth.Enterprise{}
-	BaseDetailPut(g, DBWithContext(g), &enterprise)
+func EmployeeDetailPut(g *gin.Context) {
+	employee := auth.Employee{}
+	BaseDetailPut(g, DBWithContext(g), &employee)
 }
 
-func EnterpriseDetailDelete(g *gin.Context) {
-	enterprise := auth.Enterprise{}
-	BaseDetailDelete(g, DBWithContext(g), &enterprise)
+func EmployeeDetailDelete(g *gin.Context) {
+	employee := auth.Employee{}
+	BaseDetailDelete(g, DBWithContext(g), &employee)
 }

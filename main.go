@@ -39,7 +39,7 @@ func initRouter() {
 	router.LoginRoute(rootRouter)
 
 	currentVersion := rootRouter.Group(fmt.Sprintf("/%s", conf.AppConfig.Api.Version))
-	currentVersion.Use(middleware.Authorized())
+	currentVersion.Use(middleware.CapabilitiesMiddleware())
 	router.AuthRoute(currentVersion.Group("/auth"))
 	router.EarthRoute(currentVersion.Group("/earth"))
 	router.SolarRoute(currentVersion.Group("/solar"))
@@ -47,7 +47,7 @@ func initRouter() {
 
 func init() {
 	initTables(&auth.Enterprise{}, &auth.EnterpriseMeta{}, &auth.EnterpriseAuthorization{},
-		&auth.User{}, &auth.UserMeta{}, &auth.UserAuthorization{})
+		&auth.Employee{}, &auth.EmployeeMeta{}, &auth.EmployeeAuthorization{})
 	initTables(&earth.Space{}, &earth.SpaceMeta{},
 		&earth.Device{}, &earth.DeviceMeta{})
 	initRouter()

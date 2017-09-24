@@ -15,15 +15,19 @@ type Baser interface {
 	GetBase() interface{}
 }
 
+type Omiter interface {
+	GetQueryOmittedFields() []string
+	GetOrmOmittedFields() []string
+}
+
 type HandlerImplementer interface {
 	ExecuteHandlers(g *gin.Context, db *gorm.DB, position TemplatePosition) error
 	AddHandler(position TemplatePosition, handler BaseHandlerWithDB)
 }
 
 type EntityBaser interface {
-	//GetAllowedFields() []string TODO
-	//GetOmittedFields() []string TODO
 	Baser
+	Omiter
 	HandlerImplementer
 	GetMessage() *viper.Viper
 }
@@ -49,15 +53,15 @@ const (
 )
 
 type Base struct {
-	Id          string  `sql:"type:uuid; not null; primary key" gorm:"primary_key" json:"id,omitempty"`
-	OwnerId     *string `sql:"type:uuid; default:'00000000-0000-0000-0000-000000000000'" json:"owner_id,omitempty"`
-	ParentId    *string `sql:"type:uuid; default:'00000000-0000-0000-0000-000000000000'" json:"parent_id,omitempty"`
-	Type        string  `binding:"required" json:"type,omitempty"`
-	Status      string  `json:"status,omitempty"`
-	Name        string  `binding:"required" json:"name,omitempty"`
-	Slug        string  `json:"slug,omitempty"`
-	Title       string  `json:"title,omitempty"`
-	Description string  `json:"description,omitempty"`
+	Id          string `sql:"type:uuid; not null; primary key" gorm:"primary_key" json:"id,omitempty"`
+	OwnerId     string `sql:"type:uuid; default:'00000000-0000-0000-0000-000000000000'" json:"owner_id,omitempty"`
+	ParentId    string `sql:"type:uuid; default:'00000000-0000-0000-0000-000000000000'" json:"parent_id,omitempty"`
+	Type        string `binding:"required" json:"type,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Name        string `binding:"required" json:"name,omitempty"`
+	Slug        string `json:"slug,omitempty"`
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
 
 	Content feature.JSONB `sql:"type:jsonb" json:"content,omitempty"`
 	Meta    interface{}   `gorm:"-" json:"meta,omitempty"`
@@ -76,6 +80,14 @@ type HandlerImplement struct {
 
 func (base *Base) GetBase() interface{} {
 	return base
+}
+
+func (base Base) GetQueryOmittedFields() []string {
+	return []string{"id", "parent_id", "owner_id", "created_date", "updated_date", "published_date", "deleted_date"}
+}
+
+func (base Base) GetOrmOmittedFields() []string {
+	return []string{"id"}
 }
 
 func (base Base) GetMessage() *viper.Viper {

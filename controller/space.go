@@ -8,25 +8,28 @@ import (
 func SpaceGet(g *gin.Context) {
 	space := earth.Space{}
 	var spaceList = []earth.Space{}
-	BaseGet(g, DB(), &space, &spaceList)
+	BaseGet(g, DBWithContext(g), &space, &spaceList)
 }
 
 func SpacePost(g *gin.Context) {
 	space := earth.Space{}
-	BasePost(g, DB(), &space)
+	if claim, ok := GetCapabilityClaims(g); ok && claim.IsEnterprise() {
+		space.OwnerId = claim.Id
+	}
+	BasePost(g, DBWithContext(g), &space)
 }
 
 func SpaceDetailGet(g *gin.Context) {
 	space := earth.Space{}
-	BaseDetailGet(g, DB(), &space)
+	BaseDetailGet(g, DBWithContext(g), &space)
 }
 
 func SpaceDetailPut(g *gin.Context) {
 	space := earth.Space{}
-	BaseDetailPut(g, DB(), &space)
+	BaseDetailPut(g, DBWithContext(g), &space)
 }
 
 func SpaceDetailDelete(g *gin.Context) {
 	space := earth.Space{}
-	BaseDetailDelete(g, DB(), &space)
+	BaseDetailDelete(g, DBWithContext(g), &space)
 }

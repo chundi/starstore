@@ -8,25 +8,28 @@ import (
 func DeviceGet(g *gin.Context) {
 	device := earth.Device{}
 	var deviceList = []earth.Device{}
-	BaseGet(g, DB(), &device, &deviceList)
+	BaseGet(g, DBWithContext(g), &device, &deviceList)
 }
 
 func DevicePost(g *gin.Context) {
 	device := earth.Device{}
-	BasePost(g, DB(), &device)
+	if claim, ok := GetCapabilityClaims(g); ok && claim.IsEnterprise() {
+		device.OwnerId = claim.Id
+	}
+	BasePost(g, DBWithContext(g), &device)
 }
 
 func DeviceDetailGet(g *gin.Context) {
 	device := earth.Device{}
-	BaseDetailGet(g, DB(), &device)
+	BaseDetailGet(g, DBWithContext(g), &device)
 }
 
 func DeviceDetailPut(g *gin.Context) {
 	device := earth.Device{}
-	BaseDetailPut(g, DB(), &device)
+	BaseDetailPut(g, DBWithContext(g), &device)
 }
 
 func DeviceDetailDelete(g *gin.Context) {
 	device := earth.Device{}
-	BaseDetailDelete(g, DB(), &device)
+	BaseDetailDelete(g, DBWithContext(g), &device)
 }

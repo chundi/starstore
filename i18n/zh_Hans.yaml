@@ -1,4 +1,9 @@
 message:
+  common:
+    internalerror: server internal error.
+    methodnotallowed: has no permission to perform the action.
+    unauthorized: login first!
+    tokenerror: jwt parse error!
   auth:
     enterprise:
       created: enterprise created!
@@ -7,10 +12,17 @@ message:
       unsupported: unsupport auth type
       notfound: cannot find enterprise by given account/password.
       jsonerror:
+      authvalidationerror: enterprise fields validation error.
       listerror: enterprise list error!
     login:
+      notfound: cannot find record by given account/password.
       ok: login ok!
       unsupported: unsupported login type
+    validation:
+      email: input email doesn't pass the validation.
+      mobile: input mobile doesn't pass the validation.
+      usernamesameasemail: input username same as email.
+      usernamesameasmobile: input username same as mobile.
   base:
     created: created.
     uncreated: creating error!
@@ -26,6 +38,7 @@ message:
     ok: operate ok!
     error: error!
     omitted: omitted fields found!
+    authvalidationerror: auth fields validation error.
 backstage:
 
 

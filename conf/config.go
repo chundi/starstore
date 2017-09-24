@@ -27,7 +27,9 @@ type AppConfiguration struct {
 	}
 
 	Api struct {
-		Version string
+		Version                string
+		AuthTokenExpiration    int   //hour
+		RefreshTokenExpiration int64 //hour
 	}
 }
 
