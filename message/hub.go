@@ -1,11 +1,14 @@
 package message
 
-import "sync"
+import (
+	"sync"
+)
 
 type Hub struct {
 	stores       map[string]*Store
 	store_add    chan *Store
 	store_remove chan *Store
+	ch_backup    chan *ChMsg
 	rwlock       sync.RWMutex
 }
 
@@ -14,6 +17,7 @@ func newHub() *Hub {
 		stores:       make(map[string]*Store),
 		store_add:    make(chan *Store),
 		store_remove: make(chan *Store),
+		ch_backup:    make(chan *ChMsg, 20),
 	}
 }
 
@@ -39,6 +43,10 @@ func (h *Hub) RemoveStore(store *Store) {
 	delete(h.stores, store.id)
 }
 
+func (h *Hub) BackupMsg(msg *ChMsg) {
+	logger.Info("Backup Msg", msg.dataStr)
+}
+
 func (h *Hub) run() {
 	for {
 		select {
@@ -46,6 +54,8 @@ func (h *Hub) run() {
 			h.AddStore(store)
 		case store := <-h.store_remove:
 			h.RemoveStore(store)
+		case msg := <-h.ch_backup:
+			go h.BackupMsg(msg)
 		}
 	}
 }
