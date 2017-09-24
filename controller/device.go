@@ -13,9 +13,6 @@ func DeviceGet(g *gin.Context) {
 
 func DevicePost(g *gin.Context) {
 	device := earth.Device{}
-	if claim, ok := GetCapabilityClaims(g); ok && claim.IsEnterprise() {
-		device.OwnerId = claim.Id
-	}
 	BasePost(g, DB(), &device)
 }
 

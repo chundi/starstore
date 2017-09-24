@@ -13,9 +13,6 @@ func SpaceGet(g *gin.Context) {
 
 func SpacePost(g *gin.Context) {
 	space := earth.Space{}
-	if claim, ok := GetCapabilityClaims(g); ok && claim.IsEnterprise() {
-		space.OwnerId = claim.Id
-	}
 	BasePost(g, DB(), &space)
 }
 
