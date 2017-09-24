@@ -1,21 +1,26 @@
 package model
 
 import (
-	_ "github.com/jinzhu/gorm/dialects/mysql"
-	_ "github.com/jinzhu/gorm/dialects/postgres"
-	"github.com/jinzhu/gorm"
 	"errors"
 	"fmt"
-	"github.com/galaxy-solar/starstore/util"
 	"github.com/galaxy-solar/starstore/conf"
+	"github.com/galaxy-solar/starstore/log"
+	"github.com/galaxy-solar/starstore/util"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"github.com/sirupsen/logrus"
 )
 
 var (
-	DB *gorm.DB
+	DB     *gorm.DB
+	logCfg = conf.AppConfig.Log
+	logger *logrus.Entry
 )
 
 func init() {
 	DB = InitDB()
+	logger = log.NewLogger(logCfg.Format, logCfg.Level, logCfg.Output).WithField("module", "model")
 }
 
 func InitDB() *gorm.DB {
