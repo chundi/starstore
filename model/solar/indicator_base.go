@@ -8,6 +8,7 @@ import (
 
 type IndicateBaser interface {
 	model.Baser
+	model.Omiter
 	model.HandlerImplementer
 }
 
@@ -34,4 +35,12 @@ type IndicatorBase struct {
 
 func (indicator *IndicatorBase) GetBase() interface{} {
 	return indicator
+}
+
+func (indicator IndicatorBase) GetQueryOmittedFields() []string {
+	return []string{}
+}
+
+func (indicator IndicatorBase) GetOrmOmittedFields() []string {
+	return []string{}
 }

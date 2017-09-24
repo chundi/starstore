@@ -10,8 +10,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/galaxy-solar/starstore/conf"
 	"github.com/galaxy-solar/starstore/i18n"
+	"github.com/galaxy-solar/starstore/model/auth"
 	"github.com/galaxy-solar/starstore/response"
 	"github.com/galaxy-solar/starstore/util"
 	"io"
@@ -35,6 +37,57 @@ func DB() *gorm.DB {
 	return db
 }
 
+func DBWithContext(g *gin.Context) *gorm.DB {
+	db := model.DB.New()
+	if conf.IsDevelopMode() {
+		db.LogMode(true)
+	}
+	if claim, ok := GetCapabilityClaims(g); ok {
+		if claim.IsEnterprise() {
+			db = db.Where("owner_id = ?", claim.Id)
+		} else if claim.IsEmployee() {
+			db = db.Where("owner_id = ?", claim.OwnerId)
+		}
+	}
+	return db
+}
+
+func GetCapabilityClaims(g *gin.Context) (*auth.CapabilityClaims, bool) {
+	if gToken, ok := g.Get(ACCESS_TOKEN); ok {
+		token := gToken.(*jwt.Token)
+		claim, ok := token.Claims.(*auth.CapabilityClaims)
+		return claim, ok
+	}
+	return nil, false
+}
+
+func HasCapabilities(g *gin.Context, caps ...string) bool {
+	if claim, ok := GetCapabilityClaims(g); ok {
+		hasCaps := true
+		for _, requiredCap := range caps {
+			var hasCap bool
+			for _, capability := range claim.Capabilities {
+				if capability.Token == requiredCap {
+					hasCap = true
+					break
+				}
+			}
+			if !hasCap {
+				hasCaps = false
+				break
+			}
+		}
+		if !hasCaps {
+			g.JSON(http.StatusMethodNotAllowed, &response.Response{
+				Code:    response.MethodNotAllowed,
+				Message: i18n.I18NViper.GetString("message.common.methodnotallowed"),
+			})
+		}
+		return hasCaps
+	}
+	return false
+}
+
 func BaseMessage(baser model.EntityBaser, key string) string {
 	if baser.GetMessage() != nil && baser.GetMessage().IsSet(key) {
 		return baser.GetMessage().GetString(key)
@@ -53,11 +106,7 @@ func BindRequestBodyWithTeeReader(g *gin.Context, obj interface{}) error {
 
 func ParseFilteredQuery(g *gin.Context, db *gorm.DB, baser model.EntityBaser) *gorm.DB {
 	if escapedQuery, err := url.QueryUnescape(g.Request.URL.RawQuery); err != nil {
-		g.JSON(http.StatusBadRequest, &response.Response{
-			Code:    response.Error,
-			Message: BaseMessage(baser, "error"),
-			Data:    nil,
-		})
+		Logger.Error(BaseMessage(baser, "error"))
 	} else {
 		db = util.ParseQuery(db, escapedQuery)
 	}
@@ -105,11 +154,23 @@ func BasePost(g *gin.Context, db *gorm.DB, baser model.EntityBaser) {
 	if err := baser.ExecuteHandlers(g, db, model.POSITION_POST_TRANSACTION_START); err != nil {
 		return
 	}
+	var givenJson map[string]interface{}
+	BindRequestBodyWithTeeReader(g, &givenJson)
+	for _, field := range baser.GetQueryOmittedFields() {
+		if _, ok := givenJson[field]; ok {
+			g.JSON(http.StatusBadGateway, &response.Response{
+				Code:    response.Error,
+				Message: BaseMessage(baser, "omitted"),
+				Data:    nil,
+			})
+			return
+		}
+	}
 	baser.GetBase().(*model.Base).SetCreateDate(time.Now())
 	if err := tx.Create(baser.GetEntity()).Error; err != nil {
 		tx.Rollback()
 
-		Logger.Error("base pose creating error: ", err)
+		Logger.Error("base post creating error: ", err)
 		g.JSON(http.StatusInternalServerError, &response.Response{
 			Code:    response.Error,
 			Message: BaseMessage(baser, "uncreated"),
@@ -117,12 +178,6 @@ func BasePost(g *gin.Context, db *gorm.DB, baser model.EntityBaser) {
 		})
 	} else {
 		if err := baser.ExecuteHandlers(g, tx, model.POSITION_POST_TRANSACTION_END); err != nil {
-			g.JSON(http.StatusBadGateway, &response.Response{
-				Code:    response.Error,
-				Error:   fmt.Sprint(err),
-				Message: BaseMessage(baser, "uncreated"),
-				Data:    nil,
-			})
 			return
 		}
 		tx.Commit()
@@ -170,7 +225,6 @@ func BaseDetailGet(g *gin.Context, db *gorm.DB, baser model.EntityBaser) {
 }
 
 func BaseDetailPut(g *gin.Context, db *gorm.DB, baser model.EntityBaser) {
-	omittedFields := []string{"id", "parent_id", "owner_id"}
 	db = ParseFilteredQuery(g, db, baser)
 	id := g.Param("id")
 	if db.Where("id = ?", id).First(baser.GetEntity()).RecordNotFound() {
@@ -182,7 +236,7 @@ func BaseDetailPut(g *gin.Context, db *gorm.DB, baser model.EntityBaser) {
 	} else {
 		var givenJson map[string]interface{}
 		BindRequestBodyWithTeeReader(g, &givenJson)
-		for _, field := range omittedFields {
+		for _, field := range baser.GetQueryOmittedFields() {
 			if _, ok := givenJson[field]; ok {
 				g.JSON(http.StatusBadGateway, &response.Response{
 					Code:    response.Error,
@@ -198,7 +252,7 @@ func BaseDetailPut(g *gin.Context, db *gorm.DB, baser model.EntityBaser) {
 		}
 		BindRequestBodyWithTeeReader(g, baser.GetEntity())
 		baser.GetBase().(*model.Base).SetUpdateDate(time.Now())
-		if err := db.Model(baser.GetEntity()).Omit(omittedFields...).Updates(baser.GetEntity()).Error; err != nil {
+		if err := db.Model(baser.GetEntity()).Omit(baser.GetOrmOmittedFields()...).Updates(baser.GetEntity()).Error; err != nil {
 			g.JSON(http.StatusBadGateway, &response.Response{
 				Code:    response.Error,
 				Error:   fmt.Sprint(err),

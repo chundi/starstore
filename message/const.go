@@ -12,6 +12,7 @@ const (
 	MSG_TYPE_RSP_EXCHANGE = "rsp_exchange"
 	MSG_TYPE_ACK          = "ack"
 	MSG_TYPE_LS_SPACE     = "ls_space"
+	MSG_TYPE_RSP_LS_SPACE = "rsp_ls_space"
 	MSG_TYPE_BIND_SPACE   = "bind_space"
 	MSG_TYPE_CHECK_IN     = "check_in"
 	MSG_TYPE_CHECK_OUT    = "check_out"

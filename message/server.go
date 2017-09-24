@@ -1,8 +1,11 @@
 package message
 
 import (
+	"fmt"
 	"github.com/galaxy-solar/starstore/conf"
 	"github.com/galaxy-solar/starstore/log"
+	"github.com/galaxy-solar/starstore/model"
+	"github.com/galaxy-solar/starstore/model/earth"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -33,15 +36,25 @@ func init() {
 func WsHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := wsupgrader.Upgrade(w, r, nil)
 	if err != nil {
-		//fmt.Println("Failed to set websocket upgrade: %+v", err)
-		logger.Info("Failed to set websocket upgrade: %+v", err)
+		e := fmt.Sprintf("Failed to set websocket upgrade: %+v", err)
+		logger.Error(e)
+		conn.Close()
 		return
 	}
 
-	storeId := r.URL.Query().Get("store_id")
 	clientId := r.URL.Query().Get("id")
-	clientName := r.URL.Query().Get("name")
-	clientType := r.URL.Query().Get("type")
+	device := &earth.Device{}
+	exist := model.GetOneById(model.DB.New(), clientId, device)
+	if !exist {
+		e := "Device Not Found!"
+		logger.Error(e)
+		conn.WriteMessage(websocket.CloseMessage, []byte(e))
+		conn.Close()
+		return
+	}
+	storeId := device.OwnerId
+	clientName := device.Name
+	clientType := device.Type
 	logger.Info(r.RequestURI)
 
 	store, ok := hub.GetStore(storeId)

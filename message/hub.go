@@ -44,7 +44,7 @@ func (h *Hub) RemoveStore(store *Store) {
 }
 
 func (h *Hub) BackupMsg(msg *ChMsg) {
-	logger.Info("Backup Msg", msg.dataStr)
+	logger.Info("Backup Msg", msg.DataStr)
 }
 
 func (h *Hub) run() {

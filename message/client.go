@@ -39,8 +39,10 @@ func (c *Client) ack(msgId int64, errStr string, ok bool) {
 		res = ACK_ERROR
 	}
 	a := Message{
-		Id:   msgId,
-		Type: MSG_TYPE_ACK,
+		Id:       msgId,
+		Sender:   "",
+		Receiver: "",
+		Type:     MSG_TYPE_ACK,
 		Body: MsgBodyAck{
 			Result:  res,
 			Message: errStr,
@@ -80,9 +82,9 @@ func (c *Client) readPump() {
 		msgStr := string(msg)
 		logger.WithField("sender", c.id).Info(msgStr)
 		chMsg := &ChMsg{
-			senderId: c.id,
-			data:     msg,
-			dataStr:  msgStr,
+			SenderId: c.id,
+			Data:     msg,
+			DataStr:  msgStr,
 		}
 		//c.ack(msgId, "", true)
 		//c.handling = chMsg
