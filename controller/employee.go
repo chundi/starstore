@@ -72,7 +72,7 @@ func EmployeePost(g *gin.Context) {
 		}
 		return nil
 	})
-	BasePost(g, DBWithContext(g), &employee)
+	BasePost(g, DB(), &employee)
 }
 
 func EmployeeDetailGet(g *gin.Context) {

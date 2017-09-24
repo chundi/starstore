@@ -16,7 +16,7 @@ func DevicePost(g *gin.Context) {
 	if claim, ok := GetCapabilityClaims(g); ok && claim.IsEnterprise() {
 		device.OwnerId = claim.Id
 	}
-	BasePost(g, DBWithContext(g), &device)
+	BasePost(g, DB(), &device)
 }
 
 func DeviceDetailGet(g *gin.Context) {

@@ -14,6 +14,7 @@ type CapabilityClaims struct {
 
 	Capabilities []Capability `json:"capabilities,omitempty"`
 	Id           string       `json:"id,omitempty"`
+	OwnerId      string       `json:"owner_id,omitempty"`
 	Type         string       `json:"type,omitempty"`
 
 	jwt.StandardClaims
