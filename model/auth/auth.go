@@ -2,8 +2,12 @@ package auth
 
 import (
 	"database/sql/driver"
+	"github.com/galaxy-solar/starstore/model"
 	"time"
 )
+
+func init() {
+}
 
 type Password string
 
@@ -47,18 +51,24 @@ type AuthRecover struct {
 type AuthBase struct {
 	Username string   `gorm:"not null;unique" json:"username,omitempty"`
 	Email    string   `gorm:"not null;unique" json:"email,omitempty"`
-	Mobile   string   `gorm:"not null;unique" json:"mobile,omitempty"`
+	Mobile   string   `binding:"required" gorm:"not null;unique" json:"mobile,omitempty"`
 	Password Password `binding:"required" json:"password,omitempty"`
 
 	AuthConfirm
 	AuthRecover
 	AuthLock
+
+	Jwt string `gorm:"-" json:"access_token,omitempty"`
 }
 
-type UserAuthorization struct {
+type EmployeeAuthorization struct {
 	Id string `sql:"type:uuid;not null" json:"id,omitempty"`
 
 	AuthBase
+}
+
+func (author EmployeeAuthorization) GetId() string {
+	return author.Id
 }
 
 type EnterpriseAuthorization struct {
@@ -66,4 +76,18 @@ type EnterpriseAuthorization struct {
 
 	AuthBase
 	AuthOAuth2
+}
+
+func (author EnterpriseAuthorization) GetId() string {
+	return author.Id
+}
+
+type Authorizer interface {
+	GetId() string
+}
+
+type Author interface {
+	model.Baser
+	GetAuthorization() Authorizer
+	GetAuthType() string
 }

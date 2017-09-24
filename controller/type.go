@@ -11,7 +11,7 @@ func TypeGet(g *gin.Context) {
 
 func TypePost(g *gin.Context) {
 	typeIndicator := solar.TypeIndicator{}
-	IndicatorBasePost(g, DB(), &typeIndicator)
+	IndicatorBasePost(g, DBWithContext(g), &typeIndicator)
 }
 
 func TypeDetailGet(g *gin.Context) {

@@ -11,6 +11,7 @@ func IndicatorBaseGet(g *gin.Context, db *gorm.DB, baser solar.IndicateBaser) {
 }
 
 func IndicatorBasePost(g *gin.Context, db *gorm.DB, baser solar.IndicateBaser) {
+	BindRequestBodyWithTeeReader(g, baser.GetEntity())
 
 }
 

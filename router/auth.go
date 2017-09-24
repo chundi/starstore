@@ -12,9 +12,9 @@ func AuthRoute(group *gin.RouterGroup) {
 	group.PUT("/enterprise/:id", controller.EnterpriseDetailPut)
 	group.DELETE("/enterprise/:id", controller.EnterpriseDetailDelete)
 
-	group.GET("/user", controller.UserGet)
-	group.POST("/user", controller.UserPost)
-	group.GET("/user/:id", controller.UserDetailGet)
-	group.PUT("/user/:id", controller.UserDetailPut)
-	group.DELETE("/user/:id", controller.UserDetailDelete)
+	group.GET("/employee", controller.EmployeeGet)
+	group.POST("/employee", controller.EmployeePost)
+	group.GET("/employee/:id", controller.EmployeeDetailGet)
+	group.PUT("/employee/:id", controller.EmployeeDetailPut)
+	group.DELETE("/employee/:id", controller.EmployeeDetailDelete)
 }

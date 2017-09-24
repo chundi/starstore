@@ -4,3 +4,5 @@ RunMode: development
 
 Api:
   Version: v1
+  AuthTokenExpiration: 168
+  RefreshTokenExpiration: 168
