@@ -166,6 +166,9 @@ func BasePost(g *gin.Context, db *gorm.DB, baser model.EntityBaser) {
 			return
 		}
 	}
+	if claim, ok := GetCapabilityClaims(g); ok && claim.IsEnterprise() {
+		baser.GetBase().(*model.Base).OwnerId = claim.Id
+	}
 	baser.GetBase().(*model.Base).SetCreateDate(time.Now())
 	if err := tx.Create(baser.GetEntity()).Error; err != nil {
 		tx.Rollback()

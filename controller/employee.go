@@ -22,9 +22,6 @@ func EmployeeGet(g *gin.Context) {
 
 func EmployeePost(g *gin.Context) {
 	employee := auth.Employee{}
-	if claim, ok := GetCapabilityClaims(g); ok && claim.IsEnterprise() {
-		employee.OwnerId = claim.Id
-	}
 	employee.AddHandler(model.POSITION_POST_TRANSACTION_END, func(g *gin.Context, db *gorm.DB) error {
 		authorization := auth.EmployeeAuthorization{}
 		if body, err := ioutil.ReadAll(g.Request.Body); err != nil {

@@ -58,6 +58,7 @@ type Base struct {
 	ParentId    string `sql:"type:uuid; default:'00000000-0000-0000-0000-000000000000'" json:"parent_id,omitempty"`
 	Type        string `binding:"required" json:"type,omitempty"`
 	Status      string `json:"status,omitempty"`
+	Token       string `json:"token,omitempty"`
 	Name        string `binding:"required" json:"name,omitempty"`
 	Slug        string `json:"slug,omitempty"`
 	Title       string `json:"title,omitempty"`
