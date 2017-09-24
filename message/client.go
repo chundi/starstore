@@ -2,6 +2,7 @@ package message
 
 import (
 	"bytes"
+	"encoding/json"
 	"github.com/gorilla/websocket"
 	"time"
 )
@@ -15,6 +16,7 @@ type Client struct {
 	watching map[string]*Client
 	conn     *websocket.Conn
 	send     chan []byte
+	//handling *ChMsg
 }
 
 func newClient(id string, store *Store, conn *websocket.Conn, name string, tp string) *Client {
@@ -29,6 +31,33 @@ func newClient(id string, store *Store, conn *websocket.Conn, name string, tp st
 	}
 }
 
+func (c *Client) ack(msgId int64, errStr string, ok bool) {
+	var res string
+	if ok {
+		res = ACK_OK
+	} else {
+		res = ACK_ERROR
+	}
+	a := Message{
+		Id:       msgId,
+		Sender:   "",
+		Receiver: "",
+		Type:     MSG_TYPE_ACK,
+		Body: MsgBodyAck{
+			Result:  res,
+			Message: errStr,
+		},
+	}
+	r, err := json.Marshal(&a)
+	if err != nil {
+		logger.WithField("storeId", c.owner.id).
+			WithField("sender", c.id).
+			Error("GENERATE ACK JSON ERROR!!", err)
+		return
+	}
+	c.send <- r
+}
+
 func (c *Client) readPump() {
 	defer func() {
 		c.owner.unregister <- c
@@ -36,8 +65,9 @@ func (c *Client) readPump() {
 	}()
 	c.conn.SetReadLimit(maxMsgSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
-	c.conn.SetPongHandler(func(string) error {
+	c.conn.SetPongHandler(func(d string) error {
 		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		logger.Info("Pong ", d)
 		return nil
 	})
 	for {
@@ -45,11 +75,20 @@ func (c *Client) readPump() {
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 			}
+			logger.Info(err)
 			break
 		}
 		msg = bytes.TrimSpace(bytes.Replace(msg, newLine, charSpace, -1))
-		logger.WithField("sender", c.id).Info(string(msg))
-		c.owner.transfer <- &ChMsg{c.id, msg, string(msg)}
+		msgStr := string(msg)
+		logger.WithField("sender", c.id).Info(msgStr)
+		chMsg := &ChMsg{
+			SenderId: c.id,
+			Data:     msg,
+			DataStr:  msgStr,
+		}
+		//c.ack(msgId, "", true)
+		//c.handling = chMsg
+		c.owner.transfer <- chMsg
 	}
 }
 
@@ -82,7 +121,8 @@ func (c *Client) writePump() {
 			}
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
-			if err := c.conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+			logger.Info("Ping ", c.id)
+			if err := c.conn.WriteMessage(websocket.PingMessage, []byte(c.id)); err != nil {
 				return
 			}
 		}

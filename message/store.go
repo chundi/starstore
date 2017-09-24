@@ -58,8 +58,16 @@ func (s *Store) start() {
 		case client := <-s.register:
 			s.addClient(client)
 		case client := <-s.unregister:
+			logger.Info(client.id, " offline")
+			lock := sync.Mutex{}
+			lock.Lock()
+			for _, cli := range client.watching {
+				cli.watcher = nil
+			}
+			lock.Unlock()
 			s.removeClient(client)
 		case msg := <-s.transfer:
+			s.hub.ch_backup <- msg
 			go ProcessMessage(s, msg)
 		}
 	}

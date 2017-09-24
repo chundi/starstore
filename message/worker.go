@@ -6,26 +6,35 @@ import (
 )
 
 type ChMsg struct {
-	senderId string
-	data     []byte
-	dataStr  string
+	Id         int64
+	SenderId   string
+	ReceiverId string
+	Data       []byte
+	DataStr    string
 }
 
 type Message struct {
-	Id   int64       `json:"id"`
-	Type string      `json:"type"`
-	Body interface{} `json:"body"`
+	Id       int64       `json:"id"`
+	Sender   string      `json:"sender"`
+	Receiver string      `json:"receiver"`
+	Type     string      `json:"type"`
+	Body     interface{} `json:"body"`
 }
 
-type MsgBodyExchange struct {
-	MainId   string `json:"main_id"`
-	SkuId    string `json:"sku_id"`
-	DeviceId string `json:"device_id"`
-	Space    string `json:"space"`
+type MsgBodyReqExchange struct {
+	MainId string `json:"main_id"`
+	SkuId  string `json:"sku_id"`
+	Space  string `json:"space"`
+}
+
+type MsgBodyRspExchange struct {
+	MainId string `json:"main_id"`
+	SkuId  string `json:"sku_id"`
+	Status string `json:"status"`
 }
 
 type MsgBodySpace struct {
-	DeviceId string `json:"device_id"`
+	Receiver string `json:"receiver"`
 	Space    string `json:"space"`
 	Status   string `json:"status"`
 }
@@ -35,72 +44,67 @@ type MsgBodyAck struct {
 	Message string `json:"message"`
 }
 
+type MsgBodyCheckIn map[string][]string
+
+type MsgBodyEmpty map[string][]string
+
 func ProcessMessage(s *Store, m *ChMsg) {
-	if !gjson.Valid(m.dataStr) {
+	if !gjson.Valid(m.DataStr) {
 		ServerAck(s, m, "Not a valid json.", false)
 		return
 	}
-	switch gjson.Get(m.dataStr, "type").Str {
-	case MSG_REQ_EXCHANGE:
+	if gjson.Get(m.DataStr, "receiver").Exists() {
+		m.ReceiverId = gjson.Get(m.DataStr, "receiver").Str
+	}
+	if gjson.Get(m.DataStr, "id").Exists() {
+		m.Id = gjson.Get(m.DataStr, "id").Int()
+	}
+	switch gjson.Get(m.DataStr, "type").Str {
+	case MSG_TYPE_REQ_EXCHANGE:
 		ProcessReqExchange(s, m)
-	case MSG_RSP_EXCHANGE:
+	case MSG_TYPE_RSP_EXCHANGE:
 		ProcessRspExchange(s, m)
-	case MSG_LS_SPACE:
+	case MSG_TYPE_LS_SPACE:
 		ProcessLsSpace(s, m)
-	case MSG_BIND_SPACE:
+	case MSG_TYPE_BIND_SPACE:
 		ProcessBindSpace(s, m)
-	case MSG_TEST:
+	case MSG_TYPE_TEST:
 		ProcessTestMsg(s, m)
+	case MSG_TYPE_CHECK_IN:
+		ProcessCheckIn(s, m)
+	case MSG_TYPE_CHECK_OUT:
+		ProcessCheckOut(s, m)
+	case MSG_TYPE_ACK:
+		ProcessAck(s, m)
 	default:
 		ServerAck(s, m, "Unknown message type.", false)
 		return
 	}
 }
 
-func ServerAck(s *Store, m *ChMsg, msg string, ok bool) {
+func ServerAck(s *Store, m *ChMsg, errStr string, ok bool) {
 	flog := logger.WithField("storeId", s.id).
-		WithField("sender", m.senderId).
-		WithField("data", m.dataStr).
-		WithField("info", msg)
+		WithField("sender", m.SenderId).
+		WithField("receiver", m.ReceiverId).
+		WithField("Data", m.DataStr).
+		WithField("info", errStr)
 	if !ok {
 		flog.Error()
 	}
-	sender, exist := s.getClient(m.senderId)
+	sender, exist := s.getClient(m.SenderId)
 	if !exist {
 		flog.Error("SEND ACK ERROR, SENDER OFFLINE!!")
 		return
 	}
-	var msgId int64 = 0
-	if gjson.Valid(m.dataStr) {
-		msgId = gjson.Get(m.dataStr, "id").Int()
-	}
-	var result string
-	if ok {
-		result = ACK_OK
-	} else {
-		result = ACK_ERROR
-	}
-	ack := Message{
-		Id:   msgId,
-		Type: MSG_SERVER_ACK,
-		Body: MsgBodyAck{
-			Result:  result,
-			Message: msg,
-		},
-	}
-	r, err := json.Marshal(&ack)
-	if err != nil {
-		flog.Error("GENERATE ACK JSON ERROR!!", err)
-		return
-	}
-	sender.send <- r
+	sender.ack(m.Id, errStr, ok)
 }
 
 func ProcessReqExchange(s *Store, m *ChMsg) {
 	flog := logger.WithField("storeId", s.id).
-		WithField("sender", m.senderId).
-		WithField("data", m.dataStr)
-	sender, exist := s.getClient(m.senderId)
+		WithField("sender", m.SenderId).
+		WithField("receiver", m.ReceiverId).
+		WithField("Data", m.DataStr)
+	sender, exist := s.getClient(m.SenderId)
 	if !exist {
 		flog.Error("SENDER OFFLINE!!")
 		return
@@ -112,42 +116,63 @@ func ProcessReqExchange(s *Store, m *ChMsg) {
 		return
 	}
 	msg := Message{
-		Id:   gjson.Get(m.dataStr, "id").Int(),
-		Type: MSG_REQ_EXCHANGE,
-		Body: MsgBodyExchange{
-			MainId:   gjson.Get(m.dataStr, "body.main_id").Str,
-			SkuId:    gjson.Get(m.dataStr, "body.sku_id").Str,
-			DeviceId: m.senderId,
-			Space:    sender.name,
+		Id:       m.Id,
+		Sender:   m.SenderId,
+		Receiver: m.ReceiverId,
+		Type:     MSG_TYPE_REQ_EXCHANGE,
+		Body: MsgBodyReqExchange{
+			MainId: gjson.Get(m.DataStr, "body.main_id").Str,
+			SkuId:  gjson.Get(m.DataStr, "body.sku_id").Str,
+			Space:  sender.name,
 		},
 	}
 	r, err := json.Marshal(&msg)
 	if err != nil {
 		flog.Error("GENERATE REQ_EXCHANGE JSON ERROR!!", err)
+		ServerAck(s, m, "Server error.", false)
 		return
 	}
 	receiver.send <- r
-	ServerAck(s, m, "", true)
+	//ServerAck(s, m, "", true)
 }
 
 func ProcessRspExchange(s *Store, m *ChMsg) {
 	flog := logger.WithField("storeId", s.id).
-		WithField("sender", m.senderId).
-		WithField("data", m.dataStr)
-	receiver, exist := s.getClient(gjson.Get(m.dataStr, "body.device_id").Str)
-	if !exist {
-		flog.Error("RECEIVE DEVICE OFFLINE!!")
-		ServerAck(s, m, "Device offline!", false)
+		WithField("sender", m.SenderId).
+		WithField("receiver", m.ReceiverId).
+		WithField("data", m.DataStr)
+	flog.Info()
+	msg := &Message{
+		Id:       m.Id,
+		Sender:   m.SenderId,
+		Receiver: m.ReceiverId,
+		Type:     MSG_TYPE_RSP_EXCHANGE,
+		Body: MsgBodyRspExchange{
+			MainId: gjson.Get(m.DataStr, "body.main_id").Str,
+			SkuId:  gjson.Get(m.DataStr, "body.sku_id").Str,
+			Status: gjson.Get(m.DataStr, "body.status").Str,
+		},
+	}
+	r, err := json.Marshal(&msg)
+	if err != nil {
+		flog.Error("GENERATE RSP_EXCHANGE JSON ERROR!!")
+		ServerAck(s, m, "Server error.", false)
 		return
 	}
-	receiver.send <- m.data
-	ServerAck(s, m, "", true)
+	receiver, exist := s.getClient(m.ReceiverId)
+	if !exist {
+		flog.Error("RECEIVER OFFLINE!!")
+		ServerAck(s, m, "Receiver offline.", false)
+		return
+	}
+	receiver.send <- r
 }
 
 func ProcessLsSpace(s *Store, m *ChMsg) {
+	ServerAck(s, m, "", true)
 	flog := logger.WithField("storeId", s.id).
-		WithField("sender", m.senderId).
-		WithField("data", m.dataStr)
+		WithField("sender", m.SenderId).
+		WithField("Data", m.DataStr)
 	s.rwLock.RLock()
 	spaces := []MsgBodySpace{}
 	for _, client := range s.clients {
@@ -161,7 +186,7 @@ func ProcessLsSpace(s *Store, m *ChMsg) {
 			status = "bound"
 		}
 		space := MsgBodySpace{
-			DeviceId: client.id,
+			Receiver: client.id,
 			Space:    client.name,
 			Status:   status,
 		}
@@ -169,16 +194,19 @@ func ProcessLsSpace(s *Store, m *ChMsg) {
 	}
 	s.rwLock.RUnlock()
 	msg := Message{
-		Id:   gjson.Get(m.dataStr, "id").Int(),
-		Type: MSG_SERVER_ACK,
-		Body: spaces,
+		Id:       m.Id,
+		Sender:   "",
+		Receiver: "",
+		Type:     MSG_TYPE_RSP_LS_SPACE,
+		Body:     spaces,
 	}
 	r, err := json.Marshal(&msg)
 	if err != nil {
 		flog.Error("GENERATE LS_SPACE JSON ERROR!!", err)
+		ServerAck(s, m, "Server error.", false)
 		return
 	}
-	sender, exist := s.getClient(m.senderId)
+	sender, exist := s.getClient(m.SenderId)
 	if !exist {
 		flog.Error("SENDER OFFLINE!!")
 		return
@@ -188,17 +216,24 @@ func ProcessLsSpace(s *Store, m *ChMsg) {
 
 func ProcessBindSpace(s *Store, m *ChMsg) {
 	flog := logger.WithField("storeId", s.id).
-		WithField("sender", m.senderId).
-		WithField("data", m.dataStr)
-	sender, exist := s.getClient(m.senderId)
+		WithField("sender", m.SenderId).
+		WithField("Data", m.DataStr)
+	sender, exist := s.getClient(m.SenderId)
 	if !exist {
 		flog.Error("SENDER OFFLINE!!")
 		return
 	}
-	for _, clientId := range gjson.GetMany("body.spaces") {
+	if !gjson.Get(m.DataStr, "body.spaces").IsArray() {
+		flog.Error("MSG FORMAT ERROR!!")
+		ServerAck(s, m, "Message format error.", false)
+		return
+	}
+	clientIds := gjson.Get(m.DataStr, "body.spaces").Array()
+	for _, clientId := range clientIds {
 		client, exist := s.getClient(clientId.Str)
 		if !exist {
 			flog.Error("Bound failed, device not found!", clientId.Str)
+			ServerAck(s, m, "Device not found.", false)
 			continue
 		}
 		client.watcher = sender
@@ -208,13 +243,109 @@ func ProcessBindSpace(s *Store, m *ChMsg) {
 }
 
 func ProcessTestMsg(s *Store, m *ChMsg) {
-	receiverId := gjson.Get(m.dataStr, "body.device_id").Str
-	receiver, exist := s.getClient(receiverId)
+	receiver, exist := s.getClient(m.ReceiverId)
 	if !exist {
 		ServerAck(s, m, "Device not found", false)
 		logger.Error("TEST MESSAGE, RECEIVER NOT FOUND!!")
 		return
 	}
-	receiver.send <- m.data
-	ServerAck(s, m, "", true)
+	receiver.send <- m.Data
+	//ServerAck(s, m, "", true)
+}
+
+func ProcessCheckIn(s *Store, m *ChMsg) {
+	flog := logger.WithField("storeId", s.id).
+		WithField("sender", m.SenderId).
+		WithField("receiver", m.ReceiverId).
+		WithField("data", m.DataStr)
+	flog.Info()
+	if !gjson.Get(m.DataStr, "body.sku_ids").IsArray() {
+		flog.Error("MSG FORMAT ERROR!!")
+		ServerAck(s, m, "Msg format error.", false)
+		return
+	}
+	skuIds := gjson.Get(m.DataStr, "body.sku_ids").Array()
+	var skus []string
+	for _, skuId := range skuIds {
+		skus = append(skus, skuId.Str)
+	}
+	msg := Message{
+		Id:       m.Id,
+		Sender:   m.SenderId,
+		Receiver: m.ReceiverId,
+		Type:     MSG_TYPE_CHECK_IN,
+		Body: MsgBodyCheckIn{
+			"sku_ids": skus,
+		},
+	}
+	r, err := json.Marshal(&msg)
+	if err != nil {
+		flog.Error("GENERATE LS_SPACE JSON ERROR!!", err)
+		return
+	}
+	receiver, exist := s.getClient(m.ReceiverId)
+	if !exist {
+		flog.Error("RECEIVER OFFLINE!!")
+		return
+	}
+	receiver.send <- r
+}
+
+func ProcessCheckOut(s *Store, m *ChMsg) {
+	flog := logger.WithField("storeId", s.id).
+		WithField("sender", m.SenderId).
+		WithField("receiver", m.ReceiverId).
+		WithField("data", m.DataStr)
+	flog.Info()
+	msg := Message{
+		Id:       m.Id,
+		Sender:   m.SenderId,
+		Receiver: m.ReceiverId,
+		Type:     MSG_TYPE_CHECK_OUT,
+		Body:     MsgBodyEmpty{},
+	}
+	r, err := json.Marshal(&msg)
+	if err != nil {
+		flog.Error("GENERATE JSON ERROR!!")
+		ServerAck(s, m, "Server error.", false)
+		return
+	}
+	receiver, exist := s.getClient(m.ReceiverId)
+	if !exist {
+		flog.Error("RECEIVER OFFLINE!!")
+		ServerAck(s, m, "Receiver offline.", false)
+		return
+	}
+	receiver.send <- r
+}
+
+func ProcessAck(s *Store, m *ChMsg) {
+	flog := logger.WithField("storeId", s.id).
+		WithField("sender", m.SenderId).
+		WithField("receiver", m.ReceiverId).
+		WithField("data", m.DataStr)
+	flog.Info()
+	msg := Message{
+		Id:       m.Id,
+		Sender:   m.SenderId,
+		Receiver: m.ReceiverId,
+		Type:     MSG_TYPE_ACK,
+		Body: MsgBodyAck{
+			Result:  gjson.Get(m.DataStr, "body.result").Str,
+			Message: gjson.Get(m.DataStr, "body.message").Str,
+		},
+	}
+	r, err := json.Marshal(&msg)
+	if err != nil {
+		flog.Error("GENERATE JSON ERROR!!")
+		ServerAck(s, m, "Server error.", false)
+		return
+	}
+	receiver, exist := s.getClient(m.ReceiverId)
+	if !exist {
+		flog.Error("RECEIVER OFFLINE!!")
+		ServerAck(s, m, "Receiver offline.", false)
+		return
+	}
+	receiver.send <- r
 }
