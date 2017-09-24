@@ -134,6 +134,7 @@ func GenerateToken(author auth.Author, s jwt.StandardClaims) (string, error) {
 		AuthType:       author.GetAuthType(),
 		Capabilities:   []auth.Capability{},
 		Id:             author.GetBase().(*model.Base).Id,
+		OwnerId:        author.GetBase().(*model.Base).OwnerId,
 		Type:           author.GetBase().(*model.Base).Type,
 		StandardClaims: s,
 	})

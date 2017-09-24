@@ -42,8 +42,12 @@ func DBWithContext(g *gin.Context) *gorm.DB {
 	if conf.IsDevelopMode() {
 		db.LogMode(true)
 	}
-	if claim, ok := GetCapabilityClaims(g); ok && claim.IsEnterprise() {
-		db = db.Where("owner_id = ?", claim.Id)
+	if claim, ok := GetCapabilityClaims(g); ok {
+		if claim.IsEnterprise() {
+			db = db.Where("owner_id = ?", claim.Id)
+		} else if claim.IsEmployee() {
+			db = db.Where("owner_id = ?", claim.OwnerId)
+		}
 	}
 	return db
 }
@@ -58,29 +62,30 @@ func GetCapabilityClaims(g *gin.Context) (*auth.CapabilityClaims, bool) {
 }
 
 func HasCapabilities(g *gin.Context, caps ...string) bool {
-	token := g.MustGet(ACCESS_TOKEN).(*jwt.Token)
-	claim := token.Claims.(*auth.CapabilityClaims)
-	hasCaps := true
-	for _, requiredCap := range caps {
-		var hasCap bool
-		for _, capability := range claim.Capabilities {
-			if capability.Token == requiredCap {
-				hasCap = true
+	if claim, ok := GetCapabilityClaims(g); ok {
+		hasCaps := true
+		for _, requiredCap := range caps {
+			var hasCap bool
+			for _, capability := range claim.Capabilities {
+				if capability.Token == requiredCap {
+					hasCap = true
+					break
+				}
+			}
+			if !hasCap {
+				hasCaps = false
 				break
 			}
 		}
-		if !hasCap {
-			hasCaps = false
-			break
+		if !hasCaps {
+			g.JSON(http.StatusMethodNotAllowed, &response.Response{
+				Code:    response.MethodNotAllowed,
+				Message: i18n.I18NViper.GetString("message.common.methodnotallowed"),
+			})
 		}
+		return hasCaps
 	}
-	if !hasCaps {
-		g.JSON(http.StatusMethodNotAllowed, &response.Response{
-			Code:    response.MethodNotAllowed,
-			Message: i18n.I18NViper.GetString("message.common.methodnotallowed"),
-		})
-	}
-	return hasCaps
+	return false
 }
 
 func BaseMessage(baser model.EntityBaser, key string) string {

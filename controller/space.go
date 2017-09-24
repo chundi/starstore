@@ -16,7 +16,7 @@ func SpacePost(g *gin.Context) {
 	if claim, ok := GetCapabilityClaims(g); ok && claim.IsEnterprise() {
 		space.OwnerId = claim.Id
 	}
-	BasePost(g, DBWithContext(g), &space)
+	BasePost(g, DB(), &space)
 }
 
 func SpaceDetailGet(g *gin.Context) {

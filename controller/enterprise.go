@@ -70,7 +70,7 @@ func EnterprisePost(g *gin.Context) {
 		}
 		return nil
 	})
-	BasePost(g, DBWithContext(g), &enterprise)
+	BasePost(g, DB(), &enterprise)
 }
 
 func EnterpriseDetailGet(g *gin.Context) {
