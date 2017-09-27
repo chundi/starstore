@@ -15,7 +15,7 @@ type Client struct {
 	watcher  *Client
 	watching map[string]*Client
 	conn     *websocket.Conn
-	send     chan []byte
+	send     chan *ChMsg
 	//handling *ChMsg
 }
 
@@ -27,35 +27,32 @@ func newClient(id string, store *Store, conn *websocket.Conn, name string, tp st
 		name:     name,
 		conn:     conn,
 		watching: make(map[string]*Client),
-		send:     make(chan []byte),
+		send:     make(chan *ChMsg),
 	}
 }
 
-func (c *Client) ack(msgId int64, errStr string, ok bool) {
-	var res string
-	if ok {
-		res = ACK_OK
-	} else {
-		res = ACK_ERROR
-	}
-	a := Message{
-		Id:       msgId,
-		Sender:   "",
-		Receiver: "",
-		Type:     MSG_TYPE_ACK,
-		Body: MsgBodyAck{
-			Result:  res,
-			Message: errStr,
+func (c *Client) ack(msgId int64, errStr string, res string) {
+	m := &ChMsg{
+		Msg: &Message{
+			Id:       msgId,
+			Sender:   "",
+			Receiver: "",
+			Type:     MSG_TYPE_ACK,
+			Body: MsgBodyAck{
+				Result:  res,
+				Message: errStr,
+			},
 		},
 	}
-	r, err := json.Marshal(&a)
+	r, err := json.Marshal(m.Msg)
 	if err != nil {
 		logger.WithField("storeId", c.owner.id).
 			WithField("sender", c.id).
 			Error("GENERATE ACK JSON ERROR!!", err)
 		return
 	}
-	c.send <- r
+	m.MsgByte = r
+	c.send <- m
 }
 
 func (c *Client) readPump() {
@@ -80,9 +77,9 @@ func (c *Client) readPump() {
 		}
 		msg = bytes.TrimSpace(bytes.Replace(msg, newLine, charSpace, -1))
 		msgStr := string(msg)
-		logger.WithField("sender", c.id).Info(msgStr)
 		chMsg := &ChMsg{
 			SenderId: c.id,
+			Sender:   c,
 			Data:     msg,
 			DataStr:  msgStr,
 		}
@@ -110,10 +107,10 @@ func (c *Client) writePump() {
 			if err != nil {
 				return
 			}
-			w.Write(msg)
+			w.Write(msg.MsgByte)
 			n := len(c.send)
 			for i := 0; i < n; i++ {
-				w.Write(<-c.send)
+				w.Write((<-c.send).MsgByte)
 				w.Write(newLine)
 			}
 			if err := w.Close(); err != nil {

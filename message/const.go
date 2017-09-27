@@ -18,6 +18,9 @@ const (
 	MSG_TYPE_CHECK_OUT    = "check_out"
 	MSG_TYPE_TEST         = "test"
 
-	ACK_OK    = "ok"
-	ACK_ERROR = "error"
+	ACK_OK     = "ok"
+	ACK_ERROR  = "error"
+	ACK_NOTIFY = "notify"
+
+	SPACE_TYPE_DRESSING_ROOM = "dressing_room"
 )
