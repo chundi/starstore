@@ -42,9 +42,9 @@ func WsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientId := r.URL.Query().Get("id")
+	clientId := r.URL.Query().Get("token")
 	device := &earth.Device{}
-	exist := model.GetOneById(model.DB.New(), clientId, device)
+	exist := earth.GetDeviceByToken(model.DB.New(), clientId, device)
 	if !exist {
 		e := "Device Not Found!"
 		logger.Error(e)

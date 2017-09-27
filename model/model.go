@@ -15,12 +15,12 @@ import (
 var (
 	DB     *gorm.DB
 	logCfg = conf.AppConfig.Log
-	logger *logrus.Entry
+	Logger *logrus.Entry
 )
 
 func init() {
 	DB = InitDB()
-	logger = log.NewLogger(logCfg.Format, logCfg.Level, logCfg.Output).WithField("module", "model")
+	Logger = log.NewLogger(logCfg.Format, logCfg.Level, logCfg.Output).WithField("module", "model")
 }
 
 func InitDB() *gorm.DB {

@@ -7,14 +7,12 @@ import (
 func GetOneById(db *gorm.DB, id string, entity Baser) bool {
 	r := db.Where("id = ?", id).First(entity.GetEntity())
 	if r.Error != nil {
+		flog := Logger.WithField("id", id).
+			WithField("entity", entity)
 		if r.RecordNotFound() {
-			logger.WithField("id", id).
-				WithField("entity", entity).
-				Error("Record Not Found!")
+			flog.Error("Record Not Found!")
 		} else {
-			logger.WithField("id", id).
-				WithField("entity", entity).
-				Error(r.Error.Error())
+			flog.Error(r.Error.Error())
 		}
 		return false
 	}
