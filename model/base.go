@@ -63,7 +63,10 @@ type Base struct {
 	Slug        string `json:"slug,omitempty"`
 	Title       string `json:"title,omitempty"`
 	Description string `json:"description,omitempty"`
+	Info        string `json:"info,omitempty"`
+	Remark      string `json:"remark,omitempty"`
 
+	Tag     feature.JSONB `sql:"type:jsonb" json:"tag,omitempty"`
 	Content feature.JSONB `sql:"type:jsonb" json:"content,omitempty"`
 	Meta    interface{}   `gorm:"-" json:"meta,omitempty"`
 
