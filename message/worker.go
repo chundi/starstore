@@ -42,6 +42,11 @@ type MsgBodySpace struct {
 	Receiver string `json:"receiver"`
 	Space    string `json:"space"`
 	Status   string `json:"status"`
+	Watcher  string `json:"watcher"`
+}
+
+type MsgBodyRspLsReq struct {
+	Requests []Message `json:"requests"`
 }
 
 type MsgBodyAck struct {
@@ -117,6 +122,8 @@ func ProcessMessage(s *Store, m *ChMsg) {
 			Message: gjson.Get(m.DataStr, "body.message").Str,
 		}
 		ProcessAck(s, m)
+	case MSG_TYPE_LS_REQ:
+		ProcessLsReq(s, m)
 	default:
 		m.Sender.ack(m.Id, "Unknown message type.", ACK_ERROR)
 		return
@@ -130,12 +137,18 @@ func ProcessReqExchange(s *Store, m *ChMsg) {
 		m.Sender.ack(m.Id, "Device unbound!!", ACK_ERROR)
 		return
 	}
+	if !receiver.online {
+		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
+		m.Sender.ack(m.Id, "Receiver offline!!", ACK_ERROR)
+		return
+	}
 	r, ok := MarshalJson(m.Msg)
 	if !ok {
 		m.Sender.ack(m.Id, "Server error.", ACK_ERROR)
 		return
 	}
 	m.MsgByte = r
+	m.Sender.handling[m.Msg.Body.(MsgBodyReqExchange).SkuId] = m
 	receiver.send <- m
 	//ServerAck(s, m, "", true)
 }
@@ -148,12 +161,13 @@ func ProcessRspExchange(s *Store, m *ChMsg) {
 	}
 	m.MsgByte = r
 	receiver, exist := s.getClient(m.ReceiverId)
-	if !exist {
+	if !exist || !receiver.online {
 		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
 		m.Sender.ack(m.Id, "Receiver offline.", ACK_ERROR)
 		return
 	}
 	receiver.send <- m
+	delete(receiver.handling, m.Msg.Body.(MsgBodyRspExchange).SkuId)
 }
 
 func ProcessLsSpace(s *Store, m *ChMsg) {
@@ -164,17 +178,22 @@ func ProcessLsSpace(s *Store, m *ChMsg) {
 		if client.tp != SPACE_TYPE_DRESSING_ROOM {
 			continue
 		}
-		var status string
-		if client.watcher == nil {
-			status = "unbound"
-		} else {
-			status = "bound"
+		if !client.online {
+			continue
 		}
 		space := MsgBodySpace{
 			Receiver: client.id,
 			Space:    client.name,
-			Status:   status,
 		}
+		var status string
+		if client.watcher == nil {
+			status = "unbound"
+			space.Watcher = ""
+		} else {
+			status = "bound"
+			space.Watcher = client.watcher.id
+		}
+		space.Status = status
 		spaces = append(spaces, space)
 	}
 	s.rwLock.RUnlock()
@@ -217,6 +236,11 @@ func ProcessTestMsg(s *Store, m *ChMsg) {
 		m.Sender.ack(m.Id, "Device not found", ACK_ERROR)
 		return
 	}
+	if !receiver.online {
+		logger.WithField("msgId", m.Id).Error("TEST MESSAGE, RECEIVER OFFLINE!!")
+		m.Sender.ack(m.Id, "Receiver offline", ACK_ERROR)
+		return
+	}
 	m.MsgByte = m.Data
 	receiver.send <- m
 	//ServerAck(s, m, "", true)
@@ -247,6 +271,12 @@ func ProcessCheckIn(s *Store, m *ChMsg) {
 		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
 		return
 	}
+	if !receiver.online {
+		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
+		m.Sender.ack(m.Id, "Receiver offline", ACK_ERROR)
+		return
+	}
+	receiver.clearHandlingMsg()
 	receiver.send <- m
 }
 
@@ -258,11 +288,12 @@ func ProcessCheckOut(s *Store, m *ChMsg) {
 	}
 	m.MsgByte = r
 	receiver, exist := s.getClient(m.ReceiverId)
-	if !exist {
+	if !exist || !receiver.online {
 		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
 		m.Sender.ack(m.Id, "Receiver offline.", ACK_ERROR)
 		return
 	}
+	receiver.clearHandlingMsg()
 	receiver.send <- m
 }
 
@@ -281,6 +312,8 @@ func ProcessAck(s *Store, m *ChMsg) {
 	}
 	receiver.send <- m
 }
+
+func ProcessLsReq(s *Store, m *ChMsg) {}
 
 func MarshalJson(m *Message) ([]byte, bool) {
 	r, err := json.Marshal(m)
