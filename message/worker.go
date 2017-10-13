@@ -198,6 +198,7 @@ func ProcessLsSpace(s *Store, m *ChMsg) {
 	s.rwLock.RUnlock()
 	m.Msg.Body = spaces
 	m.Msg.Sender = ""
+	m.Msg.Receiver = m.SenderId
 	m.Msg.Type = MSG_TYPE_RSP_LS_SPACE
 	r, ok := MarshalJson(m.Msg)
 	if !ok {
@@ -328,6 +329,7 @@ func ProcessLsReq(s *Store, m *ChMsg) {
 		"requests": msgs,
 	}
 	m.Msg.Sender = ""
+	m.Msg.Receiver = m.SenderId
 	m.Msg.Type = MSG_TYPE_RSP_LS_REQ
 	r, ok := MarshalJson(m.Msg)
 	if !ok {
