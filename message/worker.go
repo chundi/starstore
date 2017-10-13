@@ -3,6 +3,8 @@ package message
 import (
 	"encoding/json"
 	"errors"
+	"sync"
+
 	"github.com/tidwall/gjson"
 )
 
@@ -43,10 +45,6 @@ type MsgBodySpace struct {
 	Space    string `json:"space"`
 	Status   string `json:"status"`
 	Watcher  string `json:"watcher"`
-}
-
-type MsgBodyRspLsReq struct {
-	Requests []Message `json:"requests"`
 }
 
 type MsgBodyAck struct {
@@ -171,6 +169,7 @@ func ProcessRspExchange(s *Store, m *ChMsg) {
 }
 
 func ProcessLsSpace(s *Store, m *ChMsg) {
+	logger.WithField("msgId", m.Id).Error("GEN")
 	m.Sender.ack(m.Id, "", ACK_OK)
 	s.rwLock.RLock()
 	spaces := []MsgBodySpace{}
@@ -313,7 +312,31 @@ func ProcessAck(s *Store, m *ChMsg) {
 	receiver.send <- m
 }
 
-func ProcessLsReq(s *Store, m *ChMsg) {}
+func ProcessLsReq(s *Store, m *ChMsg) {
+	m.Sender.ack(m.Id, "", ACK_OK)
+	lock := sync.RWMutex{}
+	lock.RLock()
+	msgs := []*Message{}
+	for _, client := range m.Sender.watching {
+		for _, msg := range client.handling {
+			msgs = append(msgs, msg.Msg)
+		}
+	}
+	lock.RUnlock()
+	//m.Msg.Body = msgs
+	m.Msg.Body = map[string][]*Message{
+		"requests": msgs,
+	}
+	m.Msg.Sender = ""
+	m.Msg.Type = MSG_TYPE_RSP_LS_REQ
+	r, ok := MarshalJson(m.Msg)
+	if !ok {
+		m.Sender.ack(m.Id, "Server error.", ACK_ERROR)
+		return
+	}
+	m.MsgByte = r
+	m.Sender.send <- m
+}
 
 func MarshalJson(m *Message) ([]byte, bool) {
 	r, err := json.Marshal(m)
