@@ -3,6 +3,8 @@ package message
 import (
 	"encoding/json"
 	"errors"
+	"sync"
+
 	"github.com/tidwall/gjson"
 )
 
@@ -42,6 +44,7 @@ type MsgBodySpace struct {
 	Receiver string `json:"receiver"`
 	Space    string `json:"space"`
 	Status   string `json:"status"`
+	Watcher  string `json:"watcher"`
 }
 
 type MsgBodyAck struct {
@@ -117,6 +120,8 @@ func ProcessMessage(s *Store, m *ChMsg) {
 			Message: gjson.Get(m.DataStr, "body.message").Str,
 		}
 		ProcessAck(s, m)
+	case MSG_TYPE_LS_REQ:
+		ProcessLsReq(s, m)
 	default:
 		m.Sender.ack(m.Id, "Unknown message type.", ACK_ERROR)
 		return
@@ -130,12 +135,18 @@ func ProcessReqExchange(s *Store, m *ChMsg) {
 		m.Sender.ack(m.Id, "Device unbound!!", ACK_ERROR)
 		return
 	}
+	if !receiver.online {
+		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
+		m.Sender.ack(m.Id, "Receiver offline!!", ACK_ERROR)
+		return
+	}
 	r, ok := MarshalJson(m.Msg)
 	if !ok {
 		m.Sender.ack(m.Id, "Server error.", ACK_ERROR)
 		return
 	}
 	m.MsgByte = r
+	m.Sender.handling[m.Msg.Body.(MsgBodyReqExchange).SkuId] = m
 	receiver.send <- m
 	//ServerAck(s, m, "", true)
 }
@@ -148,15 +159,17 @@ func ProcessRspExchange(s *Store, m *ChMsg) {
 	}
 	m.MsgByte = r
 	receiver, exist := s.getClient(m.ReceiverId)
-	if !exist {
+	if !exist || !receiver.online {
 		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
 		m.Sender.ack(m.Id, "Receiver offline.", ACK_ERROR)
 		return
 	}
 	receiver.send <- m
+	delete(receiver.handling, m.Msg.Body.(MsgBodyRspExchange).SkuId)
 }
 
 func ProcessLsSpace(s *Store, m *ChMsg) {
+	logger.WithField("msgId", m.Id).Error("GEN")
 	m.Sender.ack(m.Id, "", ACK_OK)
 	s.rwLock.RLock()
 	spaces := []MsgBodySpace{}
@@ -164,17 +177,22 @@ func ProcessLsSpace(s *Store, m *ChMsg) {
 		if client.tp != SPACE_TYPE_DRESSING_ROOM {
 			continue
 		}
-		var status string
-		if client.watcher == nil {
-			status = "unbound"
-		} else {
-			status = "bound"
+		if !client.online {
+			continue
 		}
 		space := MsgBodySpace{
 			Receiver: client.id,
 			Space:    client.name,
-			Status:   status,
 		}
+		var status string
+		if client.watcher == nil {
+			status = "unbound"
+			space.Watcher = ""
+		} else {
+			status = "bound"
+			space.Watcher = client.watcher.id
+		}
+		space.Status = status
 		spaces = append(spaces, space)
 	}
 	s.rwLock.RUnlock()
@@ -217,6 +235,11 @@ func ProcessTestMsg(s *Store, m *ChMsg) {
 		m.Sender.ack(m.Id, "Device not found", ACK_ERROR)
 		return
 	}
+	if !receiver.online {
+		logger.WithField("msgId", m.Id).Error("TEST MESSAGE, RECEIVER OFFLINE!!")
+		m.Sender.ack(m.Id, "Receiver offline", ACK_ERROR)
+		return
+	}
 	m.MsgByte = m.Data
 	receiver.send <- m
 	//ServerAck(s, m, "", true)
@@ -247,6 +270,12 @@ func ProcessCheckIn(s *Store, m *ChMsg) {
 		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
 		return
 	}
+	if !receiver.online {
+		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
+		m.Sender.ack(m.Id, "Receiver offline", ACK_ERROR)
+		return
+	}
+	receiver.clearHandlingMsg()
 	receiver.send <- m
 }
 
@@ -258,11 +287,12 @@ func ProcessCheckOut(s *Store, m *ChMsg) {
 	}
 	m.MsgByte = r
 	receiver, exist := s.getClient(m.ReceiverId)
-	if !exist {
+	if !exist || !receiver.online {
 		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
 		m.Sender.ack(m.Id, "Receiver offline.", ACK_ERROR)
 		return
 	}
+	receiver.clearHandlingMsg()
 	receiver.send <- m
 }
 
@@ -280,6 +310,32 @@ func ProcessAck(s *Store, m *ChMsg) {
 		return
 	}
 	receiver.send <- m
+}
+
+func ProcessLsReq(s *Store, m *ChMsg) {
+	m.Sender.ack(m.Id, "", ACK_OK)
+	lock := sync.RWMutex{}
+	lock.RLock()
+	msgs := []*Message{}
+	for _, client := range m.Sender.watching {
+		for _, msg := range client.handling {
+			msgs = append(msgs, msg.Msg)
+		}
+	}
+	lock.RUnlock()
+	//m.Msg.Body = msgs
+	m.Msg.Body = map[string][]*Message{
+		"requests": msgs,
+	}
+	m.Msg.Sender = ""
+	m.Msg.Type = MSG_TYPE_RSP_LS_REQ
+	r, ok := MarshalJson(m.Msg)
+	if !ok {
+		m.Sender.ack(m.Id, "Server error.", ACK_ERROR)
+		return
+	}
+	m.MsgByte = r
+	m.Sender.send <- m
 }
 
 func MarshalJson(m *Message) ([]byte, bool) {

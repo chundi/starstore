@@ -13,6 +13,8 @@ const (
 	MSG_TYPE_ACK          = "ack"
 	MSG_TYPE_LS_SPACE     = "ls_space"
 	MSG_TYPE_RSP_LS_SPACE = "rsp_ls_space"
+	MSG_TYPE_LS_REQ       = "ls_req"
+	MSG_TYPE_RSP_LS_REQ   = "rsp_ls_req"
 	MSG_TYPE_BIND_SPACE   = "bind_space"
 	MSG_TYPE_CHECK_IN     = "check_in"
 	MSG_TYPE_CHECK_OUT    = "check_out"
@@ -23,4 +25,5 @@ const (
 	ACK_NOTIFY = "notify"
 
 	SPACE_TYPE_DRESSING_ROOM = "dressing_room"
+	SPACE_TYPE_PDA           = "xiaomi"
 )

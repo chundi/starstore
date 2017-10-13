@@ -63,8 +63,15 @@ func WsHandler(w http.ResponseWriter, r *http.Request) {
 		go store.start()
 		hub.store_add <- store
 	}
-	client := newClient(clientId, store, conn, clientName, clientType)
-	store.register <- client
+	client, ok := store.getClient(clientId)
+	if !ok {
+		client = newClient(clientId, store, conn, clientName, clientType)
+		store.register <- client
+	} else {
+		client.conn = conn
+		client.online = true
+		client.send = make(chan *ChMsg)
+	}
 	go client.readPump()
 	go client.writePump()
 }

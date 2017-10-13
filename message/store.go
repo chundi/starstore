@@ -26,13 +26,6 @@ func newStore(h *Hub, store_id string) *Store {
 }
 
 func (s *Store) addClient(client *Client) {
-	s.rwLock.Lock()
-	defer s.rwLock.Unlock()
-	if cli, ok := s.clients[client.id]; ok {
-		cli.conn.Close()
-		close(cli.send)
-		delete(s.clients, client.id)
-	}
 	s.clients[client.id] = client
 }
 
@@ -59,13 +52,8 @@ func (s *Store) start() {
 			s.addClient(client)
 		case client := <-s.unregister:
 			logger.Info(client.id, " offline")
-			lock := sync.Mutex{}
-			lock.Lock()
-			for _, cli := range client.watching {
-				cli.watcher = nil
-			}
-			lock.Unlock()
-			s.removeClient(client)
+			client.online = false
+			close(client.send)
 		case msg := <-s.transfer:
 			s.hub.ch_backup <- msg
 			go ProcessMessage(s, msg)

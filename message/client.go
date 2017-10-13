@@ -4,19 +4,21 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/gorilla/websocket"
+	"sync"
 	"time"
 )
 
 type Client struct {
 	id       string
 	tp       string
+	online   bool
 	owner    *Store
 	name     string
 	watcher  *Client
 	watching map[string]*Client
 	conn     *websocket.Conn
 	send     chan *ChMsg
-	//handling *ChMsg
+	handling map[string]*ChMsg
 }
 
 func newClient(id string, store *Store, conn *websocket.Conn, name string, tp string) *Client {
@@ -28,6 +30,17 @@ func newClient(id string, store *Store, conn *websocket.Conn, name string, tp st
 		conn:     conn,
 		watching: make(map[string]*Client),
 		send:     make(chan *ChMsg),
+		online:   true,
+		handling: make(map[string]*ChMsg),
+	}
+}
+
+func (c *Client) clearHandlingMsg() {
+	lock := sync.Mutex{}
+	lock.Lock()
+	defer lock.Unlock()
+	for k := range c.handling {
+		delete(c.handling, k)
 	}
 }
 
