@@ -35,6 +35,15 @@ func newClient(id string, store *Store, conn *websocket.Conn, name string, tp st
 	}
 }
 
+func (c *Client) Reset() {
+	c.online = false
+	close(c.send)
+	err := c.conn.Close()
+	if err != nil {
+		logger.Error("Close connection error. ", c.id, err)
+	}
+}
+
 func (c *Client) clearHandlingMsg() {
 	lock := sync.Mutex{}
 	lock.Lock()

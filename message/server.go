@@ -63,15 +63,21 @@ func WsHandler(w http.ResponseWriter, r *http.Request) {
 		go store.start()
 		hub.store_add <- store
 	}
+	newCli := newClient(clientId, store, conn, clientName, clientType)
 	client, ok := store.getClient(clientId)
-	if !ok {
-		client = newClient(clientId, store, conn, clientName, clientType)
-		store.register <- client
-	} else {
-		client.conn = conn
-		client.online = true
-		client.send = make(chan *ChMsg)
+	if ok {
+		logger.Info(fmt.Sprintf("Client %s %s ReConnecting, close old connection.", clientName, clientId))
+		newCli.watching = client.watching
+		newCli.handling = client.handling
+		newCli.watcher = client.watcher
+		for _, cli := range client.watching {
+			cli.watcher = newCli
+		}
+		if client.online {
+			client.Reset()
+		}
 	}
-	go client.readPump()
-	go client.writePump()
+	store.register <- newCli
+	go newCli.readPump()
+	go newCli.writePump()
 }

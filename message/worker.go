@@ -305,7 +305,7 @@ func ProcessAck(s *Store, m *ChMsg) {
 	}
 	m.MsgByte = r
 	receiver, exist := s.getClient(m.ReceiverId)
-	if !exist {
+	if !exist || !receiver.online {
 		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
 		m.Sender.ack(m.Id, "Receiver offline.", ACK_ERROR)
 		return
