@@ -12,20 +12,64 @@ import (
 )
 
 func RfidDecoder(g *gin.Context) {
-	barcode := ParseRfidToBarcode(g.Param("rfid"), conf.RFID_ENCODE_COUNT)
+	var formData map[string]string
+	err := BindRequestBodyWithTeeReader(g, &formData)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, &response.Response{
+			Code:    response.Error,
+			Message: "Arguments error.",
+			Data:    "",
+		})
+		return
+	}
+	rfids, exist := formData["rfids"]
+	if !exist {
+		g.JSON(http.StatusBadRequest, &response.Response{
+			Code:    response.Error,
+			Message: "Arguments error.",
+			Data:    "",
+		})
+		return
+	}
+	barcodes := map[string]string{}
+	for _, rfid := range strings.Split(rfids, ",") {
+		barcodes[rfid] = ParseRfidToBarcode(rfid, conf.RFID_ENCODE_COUNT)
+	}
 	g.JSON(http.StatusOK, &response.Response{
 		Code:    response.OK,
 		Message: "",
-		Data:    barcode,
+		Data:    barcodes,
 	})
 }
 
 func RfidEncoder(g *gin.Context) {
-	rfid := ParseBarcodeToRfid(g.Param("code"), conf.RFID_ENCODE_COUNT)
+	var formData map[string]string
+	err := BindRequestBodyWithTeeReader(g, &formData)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, &response.Response{
+			Code:    response.Error,
+			Message: "Arguments error.",
+			Data:    "",
+		})
+		return
+	}
+	codes, exist := formData["codes"]
+	if !exist {
+		g.JSON(http.StatusBadRequest, &response.Response{
+			Code:    response.Error,
+			Message: "Arguments error.",
+			Data:    "",
+		})
+		return
+	}
+	rfids := map[string]string{}
+	for _, code := range strings.Split(codes, ",") {
+		rfids[code] = ParseBarcodeToRfid(code, conf.RFID_ENCODE_COUNT)
+	}
 	g.JSON(http.StatusOK, &response.Response{
 		Code:    response.OK,
 		Message: "",
-		Data:    rfid,
+		Data:    rfids,
 	})
 }
 

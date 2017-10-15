@@ -6,5 +6,5 @@ const (
 	ENTITY_ENTERPRISE string = "enterprise"
 	ENTITY_EMPLOYEE   string = "employee"
 
-	RFID_ENCODE_COUNT int = 4
+	RFID_ENCODE_COUNT int = 3
 )

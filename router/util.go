@@ -6,6 +6,6 @@ import (
 )
 
 func UtilRoute(engine *gin.Engine) {
-	engine.GET("rfiddecoder/:rfid", controller.RfidDecoder)
-	engine.GET("rfidencoder/:code", controller.RfidEncoder)
+	engine.POST("rfiddecoder", controller.RfidDecoder)
+	engine.POST("rfidencoder", controller.RfidEncoder)
 }
