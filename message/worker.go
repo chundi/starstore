@@ -70,7 +70,8 @@ func PreProcessMessage(s *Store, m *ChMsg) error {
 	}
 	flog := logger.WithField("storeId", s.id).
 		WithField("msgId", m.Id).
-		WithField("sender", m.SenderId)
+		WithField("sender", m.SenderId).
+		WithField("name", m.Sender.name)
 	flog.Info(m.DataStr)
 	msg := &Message{
 		Id:       m.Id,

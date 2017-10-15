@@ -1,6 +1,7 @@
 package message
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -53,7 +54,8 @@ func (s *Store) start() {
 		case client := <-s.register:
 			s.addClient(client)
 		case client := <-s.unregister:
-			logger.Info(client.id, " offline")
+			info := fmt.Sprintf("who: %s, id: %s offline.", client.name, client.id)
+			logger.Info(info)
 			if client.online {
 				client.Reset()
 			}

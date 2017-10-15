@@ -2,13 +2,14 @@ package message
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/galaxy-solar/starstore/conf"
 	"github.com/galaxy-solar/starstore/log"
 	"github.com/galaxy-solar/starstore/model"
 	"github.com/galaxy-solar/starstore/model/earth"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
-	"net/http"
 )
 
 var (
@@ -46,7 +47,7 @@ func WsHandler(w http.ResponseWriter, r *http.Request) {
 	device := &earth.Device{}
 	exist := earth.GetDeviceByToken(model.DB.New(), clientId, device)
 	if !exist {
-		e := "Device Not Found!"
+		e := fmt.Sprintf("Device %s Not Found!", clientId)
 		logger.Error(e)
 		conn.WriteMessage(websocket.CloseMessage, []byte(e))
 		conn.Close()
