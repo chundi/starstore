@@ -70,7 +70,8 @@ func PreProcessMessage(s *Store, m *ChMsg) error {
 	}
 	flog := logger.WithField("storeId", s.id).
 		WithField("msgId", m.Id).
-		WithField("sender", m.SenderId)
+		WithField("sender", m.SenderId).
+		WithField("name", m.Sender.name)
 	flog.Info(m.DataStr)
 	msg := &Message{
 		Id:       m.Id,
@@ -129,14 +130,18 @@ func ProcessMessage(s *Store, m *ChMsg) {
 }
 
 func ProcessReqExchange(s *Store, m *ChMsg) {
-	receiver := m.Sender.watcher
-	if receiver == nil {
-		logger.WithField("msgId", m.Id).Error("DEVICE UNBOUND!!")
+	receiver, exist := s.getClient(m.Sender.watcher)
+	if m.Sender.watcher == "" || !exist {
+		logger.WithField("msgId", m.Id).
+			WithField("method", "ProcessReqExchange").
+			Error("DEVICE UNBOUND!!")
 		m.Sender.ack(m.Id, "Device unbound!!", ACK_ERROR)
 		return
 	}
 	if !receiver.online {
-		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
+		logger.WithField("msgId", m.Id).
+			WithField("method", "ProcessReqExchange").
+			Error("RECEIVER OFFLINE!!")
 		m.Sender.ack(m.Id, "Receiver offline!!", ACK_ERROR)
 		return
 	}
@@ -148,7 +153,6 @@ func ProcessReqExchange(s *Store, m *ChMsg) {
 	m.MsgByte = r
 	m.Sender.handling[m.Msg.Body.(MsgBodyReqExchange).SkuId] = m
 	receiver.send <- m
-	//ServerAck(s, m, "", true)
 }
 
 func ProcessRspExchange(s *Store, m *ChMsg) {
@@ -160,7 +164,9 @@ func ProcessRspExchange(s *Store, m *ChMsg) {
 	m.MsgByte = r
 	receiver, exist := s.getClient(m.ReceiverId)
 	if !exist || !receiver.online {
-		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
+		logger.WithField("msgId", m.Id).
+			WithField("method", "ProcessRspExchange").
+			Error("RECEIVER OFFLINE!!")
 		m.Sender.ack(m.Id, "Receiver offline.", ACK_ERROR)
 		return
 	}
@@ -169,7 +175,6 @@ func ProcessRspExchange(s *Store, m *ChMsg) {
 }
 
 func ProcessLsSpace(s *Store, m *ChMsg) {
-	logger.WithField("msgId", m.Id).Error("GEN")
 	m.Sender.ack(m.Id, "", ACK_OK)
 	s.rwLock.RLock()
 	spaces := []MsgBodySpace{}
@@ -185,12 +190,12 @@ func ProcessLsSpace(s *Store, m *ChMsg) {
 			Space:    client.name,
 		}
 		var status string
-		if client.watcher == nil {
+		if client.watcher == "" {
 			status = "unbound"
 			space.Watcher = ""
 		} else {
 			status = "bound"
-			space.Watcher = client.watcher.id
+			space.Watcher = client.watcher
 		}
 		space.Status = status
 		spaces = append(spaces, space)
@@ -211,7 +216,9 @@ func ProcessLsSpace(s *Store, m *ChMsg) {
 
 func ProcessBindSpace(s *Store, m *ChMsg) {
 	if !gjson.Get(m.DataStr, "body.spaces").IsArray() {
-		logger.WithField("msgId", m.Id).Error("MSG FORMAT ERROR!!")
+		logger.WithField("msgId", m.Id).
+			WithField("method", "ProcessBindSpace").
+			Error("MSG FORMAT ERROR!!")
 		m.Sender.ack(m.Id, "Message format error.", ACK_ERROR)
 		return
 	}
@@ -219,12 +226,13 @@ func ProcessBindSpace(s *Store, m *ChMsg) {
 	for _, clientId := range clientIds {
 		client, exist := s.getClient(clientId.Str)
 		if !exist {
-			logger.WithField("msgId", m.Id).Error("Bound failed, device not found!", clientId.Str)
-			m.Sender.ack(m.Id, "Device not found.", ACK_ERROR)
+			logger.WithField("msgId", m.Id).
+				WithField("method", "ProcessBindSpace").
+				Error("Bound failed, device not found!", clientId.Str)
 			continue
 		}
-		client.watcher = m.Sender
-		m.Sender.watching[clientId.Str] = client
+		client.watcher = m.SenderId
+		m.Sender.watching[clientId.Str] = clientId.Str
 	}
 	m.Sender.ack(m.Id, "", ACK_OK)
 }
@@ -232,23 +240,28 @@ func ProcessBindSpace(s *Store, m *ChMsg) {
 func ProcessTestMsg(s *Store, m *ChMsg) {
 	receiver, exist := s.getClient(m.ReceiverId)
 	if !exist {
-		logger.WithField("msgId", m.Id).Error("TEST MESSAGE, RECEIVER NOT FOUND!!")
+		logger.WithField("msgId", m.Id).
+			WithField("method", "ProcessTestMsg").
+			Error("TEST MESSAGE, RECEIVER NOT FOUND!!")
 		m.Sender.ack(m.Id, "Device not found", ACK_ERROR)
 		return
 	}
 	if !receiver.online {
-		logger.WithField("msgId", m.Id).Error("TEST MESSAGE, RECEIVER OFFLINE!!")
+		logger.WithField("msgId", m.Id).
+			WithField("method", "ProcessTestMsg").
+			Error("TEST MESSAGE, RECEIVER OFFLINE!!")
 		m.Sender.ack(m.Id, "Receiver offline", ACK_ERROR)
 		return
 	}
 	m.MsgByte = m.Data
 	receiver.send <- m
-	//ServerAck(s, m, "", true)
 }
 
 func ProcessCheckIn(s *Store, m *ChMsg) {
 	if !gjson.Get(m.DataStr, "body.sku_ids").IsArray() {
-		logger.WithField("msgId", m.Id).Error("MSG FORMAT ERROR!!")
+		logger.WithField("msgId", m.Id).
+			WithField("method", "ProcessCheckIn").
+			Error("MSG FORMAT ERROR!!")
 		m.Sender.ack(m.Id, "Msg format error.", ACK_ERROR)
 		return
 	}
@@ -268,11 +281,15 @@ func ProcessCheckIn(s *Store, m *ChMsg) {
 	m.MsgByte = r
 	receiver, exist := s.getClient(m.ReceiverId)
 	if !exist {
-		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
+		logger.WithField("msgId", m.Id).
+			WithField("method", "ProcessCheckIn").
+			Error("RECEIVER OFFLINE!!")
 		return
 	}
 	if !receiver.online {
-		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
+		logger.WithField("msgId", m.Id).
+			WithField("method", "ProcessCheckIn").
+			Error("RECEIVER OFFLINE!!")
 		m.Sender.ack(m.Id, "Receiver offline", ACK_ERROR)
 		return
 	}
@@ -289,7 +306,9 @@ func ProcessCheckOut(s *Store, m *ChMsg) {
 	m.MsgByte = r
 	receiver, exist := s.getClient(m.ReceiverId)
 	if !exist || !receiver.online {
-		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
+		logger.WithField("msgId", m.Id).
+			WithField("method", "ProcessCheckOut").
+			Error("RECEIVER OFFLINE!!")
 		m.Sender.ack(m.Id, "Receiver offline.", ACK_ERROR)
 		return
 	}
@@ -298,6 +317,10 @@ func ProcessCheckOut(s *Store, m *ChMsg) {
 }
 
 func ProcessAck(s *Store, m *ChMsg) {
+	// Ack消息没有接收者时，直接返回（其实应该做处理的，这里先不管。。）
+	if m.ReceiverId == "" {
+		return
+	}
 	r, ok := MarshalJson(m.Msg)
 	if !ok {
 		m.Sender.ack(m.Id, "Server error.", ACK_ERROR)
@@ -305,8 +328,10 @@ func ProcessAck(s *Store, m *ChMsg) {
 	}
 	m.MsgByte = r
 	receiver, exist := s.getClient(m.ReceiverId)
-	if !exist {
-		logger.WithField("msgId", m.Id).Error("RECEIVER OFFLINE!!")
+	if !exist || !receiver.online {
+		logger.WithField("msgId", m.Id).
+			WithField("method", "ProcessAck").
+			Error("RECEIVER OFFLINE!!")
 		m.Sender.ack(m.Id, "Receiver offline.", ACK_ERROR)
 		return
 	}
@@ -318,8 +343,16 @@ func ProcessLsReq(s *Store, m *ChMsg) {
 	lock := sync.RWMutex{}
 	lock.RLock()
 	msgs := []*Message{}
-	for _, client := range m.Sender.watching {
-		for _, msg := range client.handling {
+	for _, clientId := range m.Sender.watching {
+		cli, exist := s.getClient(clientId)
+		if !exist {
+			logger.WithField("msgId", m.Id).
+				WithField("client", clientId).
+				WithField("method", "ProcessLsReq").
+				Error("client not found.")
+			continue
+		}
+		for _, msg := range cli.handling {
 			msgs = append(msgs, msg.Msg)
 		}
 	}

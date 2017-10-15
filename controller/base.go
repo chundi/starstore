@@ -10,17 +10,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"time"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/galaxy-solar/starstore/conf"
 	"github.com/galaxy-solar/starstore/i18n"
 	"github.com/galaxy-solar/starstore/model/auth"
 	"github.com/galaxy-solar/starstore/response"
 	"github.com/galaxy-solar/starstore/util"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"net/url"
-	"time"
 )
 
 var Logger *logrus.Logger

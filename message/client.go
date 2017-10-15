@@ -14,8 +14,8 @@ type Client struct {
 	online   bool
 	owner    *Store
 	name     string
-	watcher  *Client
-	watching map[string]*Client
+	watcher  string
+	watching map[string]string
 	conn     *websocket.Conn
 	send     chan *ChMsg
 	handling map[string]*ChMsg
@@ -28,10 +28,19 @@ func newClient(id string, store *Store, conn *websocket.Conn, name string, tp st
 		tp:       tp,
 		name:     name,
 		conn:     conn,
-		watching: make(map[string]*Client),
+		watching: make(map[string]string),
 		send:     make(chan *ChMsg),
 		online:   true,
 		handling: make(map[string]*ChMsg),
+	}
+}
+
+func (c *Client) Reset() {
+	c.online = false
+	close(c.send)
+	err := c.conn.Close()
+	if err != nil {
+		logger.Error("Close connection error. ", c.id, err)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"github.com/galaxy-solar/starstore/model/earth"
 
 	"fmt"
+
 	"github.com/fvbock/endless"
 	"github.com/galaxy-solar/starstore/conf"
 	"github.com/galaxy-solar/starstore/message"
@@ -37,6 +38,7 @@ func initRouter() {
 	rootRouter.Use(gin.Recovery())
 
 	router.LoginRoute(rootRouter)
+	router.UtilRoute(rootRouter)
 
 	currentVersion := rootRouter.Group(fmt.Sprintf("/%s", conf.AppConfig.Api.Version))
 	currentVersion.Use(middleware.CapabilitiesMiddleware())

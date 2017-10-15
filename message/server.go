@@ -2,13 +2,14 @@ package message
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/galaxy-solar/starstore/conf"
 	"github.com/galaxy-solar/starstore/log"
 	"github.com/galaxy-solar/starstore/model"
 	"github.com/galaxy-solar/starstore/model/earth"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
-	"net/http"
 )
 
 var (
@@ -46,7 +47,7 @@ func WsHandler(w http.ResponseWriter, r *http.Request) {
 	device := &earth.Device{}
 	exist := earth.GetDeviceByToken(model.DB.New(), clientId, device)
 	if !exist {
-		e := "Device Not Found!"
+		e := fmt.Sprintf("Device %s Not Found!", clientId)
 		logger.Error(e)
 		conn.WriteMessage(websocket.CloseMessage, []byte(e))
 		conn.Close()
@@ -63,15 +64,28 @@ func WsHandler(w http.ResponseWriter, r *http.Request) {
 		go store.start()
 		hub.store_add <- store
 	}
+	newCli := newClient(clientId, store, conn, clientName, clientType)
 	client, ok := store.getClient(clientId)
-	if !ok {
-		client = newClient(clientId, store, conn, clientName, clientType)
-		store.register <- client
-	} else {
-		client.conn = conn
-		client.online = true
-		client.send = make(chan *ChMsg)
+	if ok {
+		logger.Info(fmt.Sprintf("Client %s %s ReConnecting, close old connection.", clientName, clientId))
+		newCli.watching = client.watching
+		newCli.handling = client.handling
+		newCli.watcher = client.watcher
+		for _, watchingId := range client.watching {
+			cli, exist := store.getClient(watchingId)
+			if !exist {
+				continue
+			}
+			cli.watcher = clientId
+		}
+		if client.online {
+			client.Reset()
+		}
+		client.watcher = ""
+		client.handling = nil
+		client.watching = nil
 	}
-	go client.readPump()
-	go client.writePump()
+	store.register <- newCli
+	go newCli.readPump()
+	go newCli.writePump()
 }

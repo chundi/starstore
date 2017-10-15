@@ -1,6 +1,7 @@
 package message
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -33,7 +34,9 @@ func (s *Store) removeClient(client *Client) {
 	s.rwLock.Lock()
 	defer s.rwLock.Unlock()
 	if cli, ok := s.clients[client.id]; ok {
-		close(cli.send)
+		if cli.online {
+			cli.Reset()
+		}
 		delete(s.clients, client.id)
 	}
 }
@@ -51,9 +54,11 @@ func (s *Store) start() {
 		case client := <-s.register:
 			s.addClient(client)
 		case client := <-s.unregister:
-			logger.Info(client.id, " offline")
-			client.online = false
-			close(client.send)
+			info := fmt.Sprintf("who: %s, id: %s offline.", client.name, client.id)
+			logger.Info(info)
+			if client.online {
+				client.Reset()
+			}
 		case msg := <-s.transfer:
 			s.hub.ch_backup <- msg
 			go ProcessMessage(s, msg)
