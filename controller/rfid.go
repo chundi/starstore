@@ -33,7 +33,7 @@ func RfidDecoder(g *gin.Context) {
 	}
 	barcodes := map[string]string{}
 	for _, rfid := range strings.Split(rfids, ",") {
-		barcodes[rfid] = ParseRfidToBarcode(rfid, conf.RFID_ENCODE_COUNT)
+		barcodes[rfid] = ParseRfidToBarcode(rfid, conf.RFID_ENCODE_COUNT, conf.RFID_REDUNDANT_COUNT)
 	}
 	g.JSON(http.StatusOK, &response.Response{
 		Code:    response.OK,
@@ -90,8 +90,11 @@ func ParseBarcodeToRfid(barcode string, encodeCount int) string {
 	return rfidString
 }
 
-func ParseRfidToBarcode(rfidCode string, encodeCount int) string {
+func ParseRfidToBarcode(rfidCode string, encodeCount int, redundantCount int) string {
 	var barcode string
+	if len(rfidCode) > redundantCount {
+		rfidCode = rfidCode[:len(rfidCode)-redundantCount]
+	}
 	if len(rfidCode)%encodeCount != 0 {
 		rfidCode = rfidCode[:len(rfidCode)-len(rfidCode)%encodeCount]
 	}

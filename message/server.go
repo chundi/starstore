@@ -85,7 +85,7 @@ func WsHandler(w http.ResponseWriter, r *http.Request) {
 		client.handling = nil
 		client.watching = nil
 	}
-	store.register <- newCli
+	store.addClient(newCli)
 	go newCli.readPump()
 	go newCli.writePump()
 }
