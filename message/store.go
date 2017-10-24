@@ -28,12 +28,6 @@ func newStore(h *Hub, store_id string) *Store {
 
 func (s *Store) addClient(client *Client) {
 	s.clients[client.id] = client
-	cli, ok := s.getClient(client.id)
-	if !ok {
-		logger.Error("addClient error", client.id)
-		return
-	}
-	logger.Info("addClient success", cli.id)
 }
 
 func (s *Store) removeClient(client *Client) {

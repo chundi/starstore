@@ -280,17 +280,11 @@ func ProcessCheckIn(s *Store, m *ChMsg) {
 	}
 	m.MsgByte = r
 	receiver, exist := s.getClient(m.ReceiverId)
-	logger.WithField("msgId", m.Id).
-		WithField("method", "ProcessCheckIn").
-		WithField("m.ReceiverId", m.ReceiverId).Info()
 	if !exist {
 		logger.WithField("msgId", m.Id).
 			WithField("method", "ProcessCheckIn").
 			WithField("reason", "receiver not exist!").
 			Error("RECEIVER OFFLINE!!")
-		for k, v := range s.clients {
-			logger.Info(k, v)
-		}
 		return
 	}
 	if !receiver.online {
