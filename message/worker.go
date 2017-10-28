@@ -231,6 +231,12 @@ func ProcessBindSpace(s *Store, m *ChMsg) {
 				Error("Bound failed, device not found!", clientId.Str)
 			continue
 		}
+		oldWatcherId := client.watcher
+		if oldWatcher, exist := s.getClient(oldWatcherId); exist {
+			if _, ok := oldWatcher.watching[clientId.Str]; ok {
+				delete(oldWatcher.watching, clientId.Str)
+			}
+		}
 		client.watcher = m.SenderId
 		m.Sender.watching[clientId.Str] = clientId.Str
 	}
